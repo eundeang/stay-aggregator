@@ -1,0 +1,7 @@
+spring:
+  application:
+    name: aggregator
+  datasource:
+    url: jdbc:mysql://localhost:3307/stay_aggregator
+    username: root
+    password: local
