@@ -5,3 +5,9 @@ spring:
     url: jdbc:mysql://localhost:3307/stay_aggregator
     username: root
     password: local
+  jpa:
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
