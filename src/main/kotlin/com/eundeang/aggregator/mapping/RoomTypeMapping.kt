@@ -10,16 +10,9 @@ import jakarta.persistence.JoinColumn
 import jakarta.persistence.JoinColumns
 import jakarta.persistence.ManyToOne
 import jakarta.persistence.Table
-import jakarta.persistence.UniqueConstraint
 
 @Entity
-@Table(
-    name = "room_type_mapping",
-    uniqueConstraints = [UniqueConstraint(
-        name = "uq_room_type_mapping",
-        columnNames = ["supplier", "external_hotel_code", "external_room_type_code"],
-    )],
-)
+@Table(name = "room_type_mapping")
 class RoomTypeMapping(
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumns(
