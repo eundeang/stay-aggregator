@@ -7,6 +7,7 @@ import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
 import jakarta.persistence.JoinColumn
+import jakarta.persistence.JoinColumns
 import jakarta.persistence.ManyToOne
 import jakarta.persistence.Table
 import jakarta.persistence.UniqueConstraint
@@ -14,11 +15,17 @@ import jakarta.persistence.UniqueConstraint
 @Entity
 @Table(
     name = "room_type_mapping",
-    uniqueConstraints = [UniqueConstraint(columnNames = ["hotel_mapping_id", "external_room_type_code"])],
+    uniqueConstraints = [UniqueConstraint(
+        name = "uq_room_type_mapping",
+        columnNames = ["supplier", "external_hotel_code", "external_room_type_code"],
+    )],
 )
 class RoomTypeMapping(
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "hotel_mapping_id", nullable = false)
+    @JoinColumns(
+        JoinColumn(name = "supplier", referencedColumnName = "supplier"),
+        JoinColumn(name = "external_hotel_code", referencedColumnName = "external_hotel_code"),
+    )
     val hotelMapping: HotelMapping,
 
     @Column(name = "external_room_type_code", nullable = false, length = 100)

@@ -7,4 +7,6 @@ interface RoomTypeMappingRepository : JpaRepository<RoomTypeMapping, Long> {
         hotelMapping: HotelMapping,
         externalRoomTypeCode: String,
     ): RoomTypeMapping?
+
+    fun findAllByHotelMapping(hotelMapping: HotelMapping): List<RoomTypeMapping>
 }
