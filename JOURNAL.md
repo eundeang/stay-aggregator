@@ -79,11 +79,8 @@
   `docs/architecture.md`로 분리 (약 44% 컨텍스트 절감). CLAUDE.md에는 링크만
   남김.
 
-- **[진행 중] 표준 모델 요금 필드** — Supplier A(일자별 단가+세금 별도)와
-  B(총액만+세금 포함)의 차이를 어떻게 표준화할지 검토 중. 총액만 표준화(단순하나
-  A의 일자별 정보 손실) / 일자별 단가만 표준화(B는 추정치가 됨, 정확도 문제) /
-  총액 필수+일자별 선택(null 허용, 정보 손실 없이 신뢰도를 명시적으로 표현) 세
-  안을 비교 중.
+- **[해결됨 → Day 2] 표준 모델 요금 필드** — 총액 필수(gross)+일자별 단가
+  선택(net, null 가능)으로 결정. 근거는 `docs/domain-model.md` "요금" 참고.
 
 ### AI 활용
 - 패키지 구조·스키마 설계·문서 구조 등 대부분의 설계 판단을 Claude와의 대화로
@@ -95,13 +92,69 @@
 
 ---
 
-## Day 2 - (다음 작업 시작 시 이어서 작성)
+## Day 2 - Supplier A/B 어댑터 구현
 
 ### 수행 내용
--
+- `docs/domain-model.md`, `docs/supplier-adapter.md`, `docs/supplier-api-spec.md`,
+  `docs/mock-supplier.md` 작성 (표준 모델·포트·스펙·Mock 원칙 문서화)
+- `SupplierCode`를 `mapping` → `domain` 패키지로 이동
+- `domain/SupplierClient.kt` 포트 및 공급사 중립 값 객체 정의
+- Mock Supplier 응답을 `docs/supplier-api-spec.md` 스펙에 맞게 재작성
+- Supplier A/B 어댑터(DTO + Client) 구현, MockWebServer 기반 테스트 작성
 
 ### 의사결정
--
+
+- **Mock 응답 구조 재작성** — 애초에 `docs/supplier-api-spec.md`를 읽지 않고
+  구현했던 Mock의 재고·요금 응답이 실제 스펙(숙소×객실타입 조합당 1행의 flat
+  구조)과 다르게 중첩(nested) 구조로 만들어져 있었음. 뒤늦게 스펙 문서를
+  확인하고 발견 — Mock/DTO/어댑터 매핑 로직을 전부 flat 구조로 다시 씀.
+  `breakfastIncluded`/`currency` 위치도 dailyRates 안이 아니라 item
+  최상위라는 걸 이 과정에서 정정.
+  - 시행착오: 어댑터 매핑 함수(`toSupplierOffers` 등)를 스펙 확인 없이 먼저
+    구현했다가, 나중에 스펙 문서를 읽고서야 구조가 다르다는 걸 발견해 다시
+    작성함. "문서를 먼저 읽고 그대로 구현" 원칙(`domain-model`,
+    `tdd-workflow` 스킬)이 왜 필요한지 체감.
+  - Mock 데이터 불변조건(재고가 날짜마다 달라야 하고 최소 한 객실 타입은
+    매진(0) 날짜를 포함해야 함, `docs/mock-supplier.md`)도 처음엔 고정값으로
+    구현했다가 같은 과정에서 순환 리스트로 수정.
+
+- **어댑터 테스트 도구: MockWebServer(OkHttp) — 9090 실제 Mock 서버 아님** —
+  처음엔 `mock` 모듈을 `testImplementation(project(":mock"))`으로 붙여 실제
+  Mock 서버를 랜덤 포트로 띄워 검증하는 방식으로 구현했으나, 이 프로젝트의
+  `tdd-workflow` 스킬이 어댑터 테스트는 MockWebServer로 스펙 예시 JSON을
+  직접 흉내내도록 정해두고 있어 전면 교체함.
+  - 검토했다 기각한 대안(실제 Mock 서버 기동 방식)의 문제: `mock` 모듈
+    패키지가 `com.eundeang.aggregator.mock`으로 루트 앱의 컴포넌트 스캔
+    범위 안에 있어서, 테스트 의존성으로 붙이자마자 `AggregatorApplicationTests`가
+    `MockSupplierApplication`까지 자기 컨텍스트로 스캔해 CGLIB로 감싸려다
+    실패하는 문제가 실제로 발생함 (`mocksupplier`로 패키지를 분리해 근본
+    해결은 했지만, 결과적으로 MockWebServer 방식으로 가면서 이 의존성 자체를
+    제거).
+  - 테스트 프레임워크는 사용자 지정으로 Kotest FunSpec 스타일 채택
+    (JUnit5+Assertions에서 전환).
+
+- **WebClient 도입 시 Spring Boot 4.1 모듈 분리 재발** — `spring-webflux`만
+  추가했을 때 `WebClient.Builder` 자동설정 빈이 없어 `NoSuchBeanDefinitionException`
+  발생. Flyway 때와 같은 패턴 — Boot 4.1부터 기술별 자동설정이 세분화된 모듈
+  (`spring-boot-webclient`)로 쪼개져 있어, `spring-webflux`(WebClient 클래스
+  자체)만으로는 Boot 자동설정이 로드되지 않음. `org.springframework.boot:spring-boot-webclient`
+  추가로 해결.
+
+- **WebClient 도입 자체에 대한 확인** — WebClient 추가가 사용자 승인 없이
+  이뤄진 것처럼 보여 확인 요청을 받았으나, `docs/architecture.md`에 이미
+  "WebClient 지정, WebFlux 전면 도입은 안 함(spring-webflux 단일 의존성만)"이
+  기록돼 있었고 이번 작업 지시에도 WebClient 사용이 명시돼 있어 기존 결정을
+  그대로 따른 것임을 확인받고 진행.
+
+### AI 활용
+- Mock/어댑터 구조를 스펙 문서 없이 먼저 설계·구현했다가, 사용자가 실제
+  스펙 문서(`docs/supplier-api-spec.md`) 위치를 알려준 뒤에야 구조 불일치를
+  발견 — Claude가 문서를 먼저 확인하지 않고 진행한 것이 시행착오의 원인.
+  이후 문서 우선 확인 원칙을 지키도록 스스로 교정.
+- 테스트 방식(실제 Mock 서버 vs MockWebServer)은 사용자가 `tdd-workflow`
+  스킬을 통해 명시적으로 지정 — Claude가 임의로 선택한 방식을 사용자 지정
+  방식으로 전면 교체함.
 
 ### 참고 자료
--
+- `docs/supplier-api-spec.md`, `docs/supplier-adapter.md`, `docs/mock-supplier.md`,
+  `docs/domain-model.md`
