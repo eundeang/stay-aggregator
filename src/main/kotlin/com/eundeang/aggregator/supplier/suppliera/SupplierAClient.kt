@@ -9,6 +9,7 @@ import com.eundeang.aggregator.domain.SupplierFailureReason
 import com.eundeang.aggregator.domain.SupplierHotel
 import com.eundeang.aggregator.domain.SupplierOffer
 import com.eundeang.aggregator.domain.SupplierRoomType
+import com.eundeang.aggregator.domain.calculateTotalAmount
 import kotlinx.coroutines.CancellationException
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.http.HttpStatusCode
@@ -117,7 +118,7 @@ private fun SupplierAAvailabilityResponseDto.toSupplierOffers(): List<SupplierOf
             externalRoomTypeCode = item.roomTypeCode,
             breakfastIncluded = item.breakfastIncluded,
             currency = item.currency,
-            totalAmount = item.dailyRates.sumOf { it.nightlyRate + it.taxAmount },
+            totalAmount = calculateTotalAmount(item.dailyRates.map { it.nightlyRate to it.taxAmount }),
             nightlyNetAmounts =
                 item.dailyRates.map {
                     NightlyNetAmount(date = LocalDate.parse(it.date), amount = it.nightlyRate)
