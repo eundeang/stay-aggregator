@@ -20,13 +20,10 @@ class RoomTypeMapping(
         JoinColumn(name = "external_hotel_code", referencedColumnName = "external_hotel_code"),
     )
     val hotelMapping: HotelMapping,
-
     @Column(name = "external_room_type_code", nullable = false, length = 100)
     val externalRoomTypeCode: String,
-
     @Column(name = "room_type_name", nullable = false)
     var roomTypeName: String,
-
     @Column(name = "max_occupancy", nullable = false)
     var maxOccupancy: Int,
 ) {
