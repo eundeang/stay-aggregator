@@ -1,4 +1,4 @@
-package com.eundeang.aggregator.mock
+package com.eundeang.mocksupplier
 
 import org.springframework.stereotype.Component
 import java.util.concurrent.atomic.AtomicReference

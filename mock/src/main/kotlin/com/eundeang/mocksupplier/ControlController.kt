@@ -1,4 +1,4 @@
-package com.eundeang.aggregator.mock
+package com.eundeang.mocksupplier
 
 import org.springframework.http.HttpStatus
 import org.springframework.web.bind.annotation.PathVariable

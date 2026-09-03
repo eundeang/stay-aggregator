@@ -1,8 +1,8 @@
-package com.eundeang.aggregator.mock.supplierb
+package com.eundeang.mocksupplier.supplierb
 
-import com.eundeang.aggregator.mock.ModeStore
-import com.eundeang.aggregator.mock.MockMode
-import com.eundeang.aggregator.mock.NO_RESPONSE_DELAY_MS
+import com.eundeang.mocksupplier.ModeStore
+import com.eundeang.mocksupplier.MockMode
+import com.eundeang.mocksupplier.NO_RESPONSE_DELAY_MS
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
@@ -23,7 +23,7 @@ class SupplierBController(private val modeStore: ModeStore) {
         if (modeStore.get("b") == MockMode.ERROR) {
             return BPropertiesResponse(ERROR_CODE, "Supplier B is temporarily unavailable", null)
         }
-        return BPropertiesResponse(OK_CODE, "OK", BPropertiesData(SupplierBData.properties))
+        return BPropertiesResponse(OK_CODE, "SUCCESS", BPropertiesData(SupplierBData.properties))
     }
 
     @GetMapping("/search")
@@ -49,15 +49,22 @@ class SupplierBController(private val modeStore: ModeStore) {
                     val rate = SupplierBData.rates.getValue(room.roomId)
                     BSearchItem(
                         propertyId = property.propertyId,
+                        propertyName = property.propertyName,
                         roomId = room.roomId,
+                        roomName = room.roomName,
+                        maxOccupancy = room.maxOccupancy,
+                        breakfastIncluded = rate.breakfastIncluded,
+                        currency = SupplierBData.CURRENCY,
                         totalPrice = rate.pricePerNight * dates.size,
                         taxIncluded = true,
-                        inventory = dates.map { date -> BInventoryDay(date.toString(), rate.remainingRooms) },
+                        inventory = dates.mapIndexed { index, date ->
+                            BInventoryDay(date.toString(), rate.remainingRoomsCycle[index % rate.remainingRoomsCycle.size])
+                        },
                     )
                 }
             }
 
-        return BSearchResponse(OK_CODE, "OK", BSearchData(items))
+        return BSearchResponse(OK_CODE, "SUCCESS", BSearchData(items))
     }
 
     private fun applyDelay() {

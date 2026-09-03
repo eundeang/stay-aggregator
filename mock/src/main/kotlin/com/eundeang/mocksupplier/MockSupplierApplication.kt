@@ -1,4 +1,4 @@
-package com.eundeang.aggregator.mock
+package com.eundeang.mocksupplier
 
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.runApplication

@@ -1,8 +1,8 @@
-package com.eundeang.aggregator.mock.suppliera
+package com.eundeang.mocksupplier.suppliera
 
-import com.eundeang.aggregator.mock.ModeStore
-import com.eundeang.aggregator.mock.MockMode
-import com.eundeang.aggregator.mock.NO_RESPONSE_DELAY_MS
+import com.eundeang.mocksupplier.ModeStore
+import com.eundeang.mocksupplier.MockMode
+import com.eundeang.mocksupplier.NO_RESPONSE_DELAY_MS
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.GetMapping
@@ -35,29 +35,32 @@ class SupplierAController(private val modeStore: ModeStore) {
         val codes = hotelCodes.split(",").map { it.trim() }
         val dates = datesBetween(LocalDate.parse(checkIn), LocalDate.parse(checkOut))
 
-        val hotels = SupplierAData.hotels
+        val items = SupplierAData.hotels
             .filter { it.hotelCode in codes }
-            .map { hotel ->
-                AHotelAvailability(
-                    hotelCode = hotel.hotelCode,
-                    roomTypes = hotel.roomTypes.map { roomType ->
-                        val rate = SupplierAData.rates.getValue(roomType.roomTypeCode)
-                        ARoomAvailability(
-                            roomTypeCode = roomType.roomTypeCode,
-                            dailyRates = dates.map { date ->
-                                ADailyRate(
-                                    date = date.toString(),
-                                    nightlyRate = rate.nightlyRate,
-                                    taxAmount = rate.taxAmount,
-                                    remainingRooms = rate.remainingRooms,
-                                )
-                            },
-                        )
-                    },
-                )
+            .flatMap { hotel ->
+                hotel.roomTypes.map { roomType ->
+                    val rate = SupplierAData.rates.getValue(roomType.roomTypeCode)
+                    AAvailabilityItem(
+                        hotelCode = hotel.hotelCode,
+                        hotelName = hotel.hotelName,
+                        roomTypeCode = roomType.roomTypeCode,
+                        roomTypeName = roomType.roomTypeName,
+                        maxOccupancy = roomType.maxOccupancy,
+                        breakfastIncluded = rate.breakfastIncluded,
+                        currency = SupplierAData.CURRENCY,
+                        dailyRates = dates.mapIndexed { index, date ->
+                            ADailyRate(
+                                date = date.toString(),
+                                remainingRooms = rate.remainingRoomsCycle[index % rate.remainingRoomsCycle.size],
+                                nightlyRate = rate.nightlyRate,
+                                taxAmount = rate.taxAmount,
+                            )
+                        },
+                    )
+                }
             }
 
-        return ResponseEntity.ok(AAvailabilityResponse(hotels))
+        return ResponseEntity.ok(AAvailabilityResponse(items))
     }
 
     /** ERROR/NO_RESPONSE 모드 처리. null이면 정상 응답을 계속 진행해도 된다는 뜻. */

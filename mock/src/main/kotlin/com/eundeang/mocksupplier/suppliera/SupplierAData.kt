@@ -1,7 +1,14 @@
-package com.eundeang.aggregator.mock.suppliera
+package com.eundeang.mocksupplier.suppliera
 
 object SupplierAData {
-    data class Rate(val nightlyRate: Int, val taxAmount: Int, val remainingRooms: Int)
+    const val CURRENCY = "KRW"
+
+    data class Rate(
+        val nightlyRate: Int,
+        val taxAmount: Int,
+        val remainingRoomsCycle: List<Int>, // 날짜마다 순환 적용 — 재고가 날짜별로 달라야 함(0 포함)
+        val breakfastIncluded: Boolean,
+    )
 
     val hotels = listOf(
         AHotel(
@@ -17,7 +24,7 @@ object SupplierAData {
     )
 
     val rates = mapOf(
-        "DLX-TWN" to Rate(nightlyRate = 150_000, taxAmount = 15_000, remainingRooms = 3),
-        "STD-DBL" to Rate(nightlyRate = 90_000, taxAmount = 9_000, remainingRooms = 5),
+        "DLX-TWN" to Rate(nightlyRate = 150_000, taxAmount = 15_000, remainingRoomsCycle = listOf(3, 1, 5), breakfastIncluded = false),
+        "STD-DBL" to Rate(nightlyRate = 90_000, taxAmount = 9_000, remainingRoomsCycle = listOf(0, 2, 4), breakfastIncluded = true),
     )
 }

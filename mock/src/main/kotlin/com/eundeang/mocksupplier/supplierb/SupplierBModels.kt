@@ -1,4 +1,4 @@
-package com.eundeang.aggregator.mock.supplierb
+package com.eundeang.mocksupplier.supplierb
 
 data class BRoom(val roomId: String, val roomName: String, val maxOccupancy: Int)
 
@@ -12,7 +12,12 @@ data class BInventoryDay(val date: String, val remainingRooms: Int)
 
 data class BSearchItem(
     val propertyId: String,
+    val propertyName: String,
     val roomId: String,
+    val roomName: String,
+    val maxOccupancy: Int,
+    val breakfastIncluded: Boolean,
+    val currency: String,
     val totalPrice: Int,
     val taxIncluded: Boolean,
     val inventory: List<BInventoryDay>,
