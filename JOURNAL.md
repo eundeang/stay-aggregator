@@ -7,6 +7,7 @@
 - 패키지 구조 설계
 - 커밋 컨벤션 정의 및 Claude Code Skill로 등록
 - 매핑 테이블(hotel_mapping, room_type_mapping) 스키마 설계 및 구현
+- 매핑 테이블 PK를 surrogate key(Long)에서 자연키(복합키)로 재설계
 - 표준 도메인 모델의 요금/재고 필드 설계 진행 중
 
 ### 의사결정
@@ -47,6 +48,25 @@
   묶어주는 공통 키가 스펙상 없음. `supplier` 컬럼을 매핑 테이블에 둬서 공급사가
   다르면 내부 식별자를 공유하지 않는 것을 기본 동작으로 삼음. 병합 판단(숙소명
   유사도 등)은 별도 설계 과제라 선택 구현으로 남겨둠.
+
+- **[수정] 매핑 테이블 PK: surrogate key → 자연키** — 위 "매핑 테이블 유니크
+  제약"에서 "내부 식별자는 매핑 레코드의 surrogate PK를 그대로 사용"하기로
+  했던 결정을 뒤집음. `hotel_mapping`의 내부 숙소 식별자를 의미 없는
+  surrogate `Long` 대신 `(supplier, external_hotel_code)` 복합 자연키로
+  바꿈 — 공급사+외부코드 자체가 이미 유일성을 보장하는 값이라, 로그나
+  디버깅 중에 surrogate id를 다시 supplier/external_hotel_code로
+  역추적할 필요 없이 식별자 자체가 의미를 갖게 하기 위함.
+  - `room_type_mapping`은 `hotel_mapping`을 `@MapsId` 없이 일반
+    `@ManyToOne` + 복합 `@JoinColumns`로 참조. `@MapsId`로 자식 엔티티의
+    PK 일부를 부모 키에서 파생시키는 방식은 Kotlin data class(불변 필드,
+    기본 생성자 부재)와 결합할 때 복잡도가 커져서, `room_type_mapping`
+    자체 PK는 surrogate id로 유지하고 FK만 복합키로 거는 절충 선택.
+  - V1 마이그레이션은 로컬 개발용 컨테이너에만 적용된 상태(다른 환경/팀원
+    공유 없음)라 V2를 새로 추가하지 않고 V1 파일을 직접 수정. 로컬 MySQL
+    볼륨을 초기화(`docker compose down -v`)한 뒤 재기동해서 새 스키마
+    적용과 앱 기동을 재검증.
+  - `feat: 매핑 엔티티·레포지토리 추가` 커밋(surrogate key 설계)을
+    대체하는 변경이라는 점을 커밋 메시지에 남김.
 
 - **커밋 분리 기준** — 매핑 관련 변경(Flyway 설정 / 마이그레이션 SQL /
   Entity·Repository 코드)을 한 커밋에 묶으려다, "이 커밋만 revert해도 다른
