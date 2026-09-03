@@ -146,6 +146,19 @@
   기록돼 있었고 이번 작업 지시에도 WebClient 사용이 명시돼 있어 기존 결정을
   그대로 따른 것임을 확인받고 진행.
 
+- **`calculateAvailableRooms` 빈 리스트 처리: IllegalArgumentException** —
+  스펙에 명시 안 된 케이스라 임의로 정하지 않고 사용자에게 트레이드오프
+  제시 후 확정. 빈 기간 조회는 호출부(StaySearchService 등)의 버그로 보고,
+  조용히 0을 돌려주면 "재고 0"과 "입력 오류"가 구분 안 되어 버그를 숨기게
+  된다는 게 근거.
+
+- **`calculateTotalAmount` 위치: domain 패키지 (어댑터 아님)** — 사용자는
+  "Supplier A 전용 헬퍼"라고 표현했지만, 시그니처가 `List<Pair<Long,Long>>`로
+  A의 DTO 타입과 무관한 순수 계산이라 `supplier/suppliera`가 아니라 domain에
+  둠. `docs/supplier-adapter.md`의 "어댑터는 중립화까지만, 비즈니스 규칙은
+  위 계층" 원칙과 `calculateAvailableRooms`와 같은 위치에 둬야 일관된다는
+  게 근거. `SupplierAClient`는 이 함수를 호출하도록 리팩터.
+
 ### AI 활용
 - Mock/어댑터 구조를 스펙 문서 없이 먼저 설계·구현했다가, 사용자가 실제
   스펙 문서(`docs/supplier-api-spec.md`) 위치를 알려준 뒤에야 구조 불일치를
@@ -154,6 +167,8 @@
 - 테스트 방식(실제 Mock 서버 vs MockWebServer)은 사용자가 `tdd-workflow`
   스킬을 통해 명시적으로 지정 — Claude가 임의로 선택한 방식을 사용자 지정
   방식으로 전면 교체함.
+- `calculateTotalAmount` 위치는 사용자가 "네가 판단해서 제안해줘"라고
+  위임 — Claude가 domain 패키지를 제안했고 사용자 이견 없이 그대로 채택.
 
 ### 참고 자료
 - `docs/supplier-api-spec.md`, `docs/supplier-adapter.md`, `docs/mock-supplier.md`,
