@@ -1,5 +1,6 @@
 package com.eundeang.aggregator.mapping
 
+import com.eundeang.aggregator.domain.SupplierCode
 import jakarta.persistence.Column
 import jakarta.persistence.Embeddable
 import jakarta.persistence.EmbeddedId
