@@ -159,6 +159,31 @@
   위 계층" 원칙과 `calculateAvailableRooms`와 같은 위치에 둬야 일관된다는
   게 근거. `SupplierAClient`는 이 함수를 호출하도록 리팩터.
 
+- **`MappingSyncService` 테스트: `@DataJpaTest` + 실제 MySQL(H2 아님)** —
+  Day 1에 이미 "MySQL을 실전 환경에 가깝게 쓰기로 하고 H2를 기각"한 결정과
+  일관되게, `@AutoConfigureTestDatabase(replace = NONE)`으로 임베디드 DB
+  대체 없이 실제 dev MySQL(Flyway로 마이그레이션된 스키마)을 그대로 사용.
+  `@DataJpaTest`가 테스트당 트랜잭션을 자동 롤백해줘서 실제 DB를 써도
+  케이스 간 격리는 그대로 유지됨.
+  - 테스트 프레임워크는 이번엔 Kotest가 아니라 JUnit5로 감 — 순수 함수/HTTP
+    어댑터 테스트와 달리 `@DataJpaTest`의 생성자 주입·트랜잭션 롤백을
+    Kotest FunSpec에서 쓰려면 `kotest-extensions-spring`이 추가로 필요하고
+    버전 호환을 검증해야 하는 리스크가 있어, tdd-workflow 스킬이 허용하는
+    "JUnit5(+Assertions)" 조합으로 대체. Boot 4.1의 테스트 어노테이션 패키지
+    위치(`org.springframework.boot.data.jpa.test.autoconfigure`,
+    `org.springframework.boot.jdbc.test.autoconfigure`)도 이번에 처음
+    확인함 (Flyway/WebClient 때와 같은 모듈 분리 패턴).
+  - 시행착오로 드러난 버그 2건 (둘 다 테스트가 먼저 잡음):
+    1. `RoomTypeMapping`을 매번 새 객체로 `save()`하면 surrogate id라 항상
+       insert로 취급돼, 두 번째 동기화에서 DB 유니크 제약 위반
+       (`DataIntegrityViolationException`) 발생 → 기존 레코드 조회 후
+       upsert하도록 수정.
+    2. 기존 레코드를 찾아도 필드를 갱신하지 않고 그대로 재저장해서 이름/정원
+       변경이 반영 안 됨 → 찾은 엔티티의 필드를 직접 갱신하도록 수정.
+       (참고로 `HotelMapping`은 자연키라 매번 새 객체로 `save()`해도 JPA가
+       merge로 처리해서 이 문제가 없었음 — 두 엔티티의 PK 전략 차이가 그대로
+       구현 차이로 이어짐.)
+
 ### AI 활용
 - Mock/어댑터 구조를 스펙 문서 없이 먼저 설계·구현했다가, 사용자가 실제
   스펙 문서(`docs/supplier-api-spec.md`) 위치를 알려준 뒤에야 구조 불일치를

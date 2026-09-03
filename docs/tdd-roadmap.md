@@ -14,7 +14,7 @@
   근거는 JOURNAL.md Day 2 참고)
 - 테스트 케이스: 일반 케이스, 최솟값 0(예약불가), 1박 단일 케이스, 전날짜 동일값
 
-### 1-2. 매핑 생성/갱신 로직 (`MappingSyncService` 가칭)
+### 1-2. 매핑 생성/갱신 로직 (`MappingSyncService` 가칭) ✅ 완료
 - `syncHotels(supplier: SupplierCode, hotels: List<SupplierHotel>)`
     - 신규 외부 코드 → 새 `HotelMapping`/`RoomTypeMapping` 생성
     - 기존 외부 코드 재조회 → **같은 내부 식별자 유지**, `hotelName` 등 변경분만 갱신
