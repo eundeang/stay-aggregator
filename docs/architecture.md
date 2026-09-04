@@ -97,3 +97,44 @@
    자주 바뀌는지" 근거가 없어 임의값이 되는 문제는 동일하게 남아 1차
    범위에서는 채택하지 않는다. 트래픽/숙소 규모가 커지면 고려할 만한
    다음 단계.
+
+## 매핑 배치 upsert: 왜 JPA 배치 대신 네이티브 멀티로우 upsert인가
+
+대한민국 전체 숙박 업소 규모(공공 데이터 기준 약 3~5만 건)를 대비 기준으로
+잡으면, 기존 `MappingSyncService.syncHotels`의 "레코드당 SELECT 1회 + INSERT/UPDATE
+1회" 방식은 숙소 5만 건 × 객실타입 평균 3종만 잡아도 약 35만 회의 개별 DB
+왕복이 발생한다. 트리거를 동기/비동기 무엇으로 바꾸든 이 왕복 횟수 자체는
+줄지 않으므로, 트리거 설계와 별개로 upsert 자체를 재설계해야 했다.
+
+**최종 결정**: `MappingBatchUpsertService`가 `JdbcTemplate`으로 `INSERT ...
+ON DUPLICATE KEY UPDATE`를 청크(기본 1000건)당 멀티로우로 묶어 실행. 신규/기존
+판정을 위한 사전 SELECT 자체를 없애고, 이미 걸려 있는 유니크 제약
+(`hotel_mapping` PK `(supplier, external_hotel_code)`, `room_type_mapping`의
+`(supplier, external_hotel_code, external_room_type_code)` UNIQUE)에 판정을
+위임한다.
+
+**왜 JPA 배치(`saveAll` + `hibernate.jdbc.batch_size`)가 아닌가**
+- 기존 데이터를 `IN` 쿼리로 조회해 신규/기존을 메모리에서 나누는 단계 자체가
+  없어져, 왕복 횟수가 "레코드 수"가 아니라 "청크 수"로 줄어든다 (5만 건 ÷
+  1000 = 약 50회, 개별 처리 약 35만 회 대비 압도적으로 적음).
+- JPA 영속성 컨텍스트에 수만 개 엔티티를 누적시키지 않아, 대량 처리 중
+  flush/clear 관리나 더티체킹 비용 문제가 애초에 발생하지 않는다.
+- MySQL Connector/J는 `rewriteBatchedStatements=true` 없이는 JDBC
+  `Statement` 배치를 실제로 묶어 보내지 않는데(설정을 놓치면 배치 효과가
+  조용히 사라짐), 멀티로우 `INSERT` 문은 애초에 하나의 SQL 문이라 이 설정에
+  의존하지 않는다. 다만 다른 곳에서 JPA `saveAll` 등 배치를 쓸 가능성에
+  대비해 `application.yaml`의 datasource URL에도 `rewriteBatchedStatements=true`를
+  추가해뒀다.
+
+**왜 Spring Batch가 아닌가**: `syncHotels`는 멱등 연산(같은 입력으로 재실행해도
+안전)이라, 중간 실패 시 처음부터 재실행해도 안전하고(배치 upsert로 이미
+빨라졌으므로 재실행 비용도 크지 않음) Spring Batch의 재시작(restart-from
+-checkpoint)이 주는 이득이 크지 않다. 반면 Spring Batch는 `BATCH_JOB_INSTANCE`
+등 메타 스키마를 Flyway 마이그레이션에 추가로 얹어야 해서 인프라 비용이 이
+이득 대비 과하다고 판단했다 (근거는 위 "매핑 생성 트리거" 4번 항목과 동일한
+결).
+
+**실측하지 않은 이유**: Mock Supplier가 현재 숙소 몇 개뿐이라 5만 건 규모의
+실측 벤치마크는 이 과제 범위에서 수행하지 않는다. 위 왕복 횟수 비교(약 35만
+회 → 약 50회)는 계산 근거이며, 실제 처리 시간은 네트워크/DB 스펙에 따라
+달라질 수 있다.

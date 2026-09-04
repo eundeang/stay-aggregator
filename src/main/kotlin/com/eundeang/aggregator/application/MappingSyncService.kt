@@ -2,10 +2,7 @@ package com.eundeang.aggregator.application
 
 import com.eundeang.aggregator.domain.SupplierCode
 import com.eundeang.aggregator.domain.SupplierHotel
-import com.eundeang.aggregator.mapping.HotelMapping
-import com.eundeang.aggregator.mapping.HotelMappingRepository
-import com.eundeang.aggregator.mapping.RoomTypeMapping
-import com.eundeang.aggregator.mapping.RoomTypeMappingRepository
+import com.eundeang.aggregator.mapping.MappingBatchUpsertService
 import org.springframework.stereotype.Service
 
 /**
@@ -13,45 +10,24 @@ import org.springframework.stereotype.Service
  * 근거: docs/architecture.md "같은 공급사 상품이 항상 같은 내부 식별자로
  * 매핑되는 것을 DB 레벨에서 보장" — 존재 여부 판정은 (supplier, externalHotelCode)
  * 복합키 기준.
+ *
+ * 실제 upsert는 [MappingBatchUpsertService]의 네이티브 멀티로우 upsert에 위임
+ * (근거: docs/architecture.md "매핑 배치 upsert").
  */
 @Service
 class MappingSyncService(
-    private val hotelMappingRepository: HotelMappingRepository,
-    private val roomTypeMappingRepository: RoomTypeMappingRepository,
+    private val mappingBatchUpsertService: MappingBatchUpsertService,
 ) {
     fun syncHotels(
         supplier: SupplierCode,
         hotels: List<SupplierHotel>,
     ) {
-        hotels.forEach { hotel ->
-            val hotelMapping =
-                HotelMapping(
-                    id = HotelMapping.Id(supplier, hotel.externalHotelCode),
-                    hotelName = hotel.hotelName,
-                )
-            hotelMappingRepository.save(hotelMapping)
+        mappingBatchUpsertService.upsertHotels(supplier, hotels)
 
-            hotel.roomTypes.forEach { roomType ->
-                val existing =
-                    roomTypeMappingRepository.findByHotelMappingAndExternalRoomTypeCode(
-                        hotelMapping,
-                        roomType.externalRoomTypeCode,
-                    )
-                val roomTypeMapping =
-                    if (existing != null) {
-                        existing.roomTypeName = roomType.roomTypeName
-                        existing.maxOccupancy = roomType.maxOccupancy
-                        existing
-                    } else {
-                        RoomTypeMapping(
-                            hotelMapping = hotelMapping,
-                            externalRoomTypeCode = roomType.externalRoomTypeCode,
-                            roomTypeName = roomType.roomTypeName,
-                            maxOccupancy = roomType.maxOccupancy,
-                        )
-                    }
-                roomTypeMappingRepository.save(roomTypeMapping)
+        val roomTypes =
+            hotels.flatMap { hotel ->
+                hotel.roomTypes.map { roomType -> hotel.externalHotelCode to roomType }
             }
-        }
+        mappingBatchUpsertService.upsertRoomTypes(supplier, roomTypes)
     }
 }

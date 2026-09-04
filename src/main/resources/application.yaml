@@ -2,7 +2,7 @@ spring:
   application:
     name: aggregator
   datasource:
-    url: jdbc:mysql://localhost:3307/stay_aggregator
+    url: jdbc:mysql://localhost:3307/stay_aggregator?rewriteBatchedStatements=true
     username: root
     password: local
   jpa:

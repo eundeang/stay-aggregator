@@ -206,6 +206,9 @@
 ### 수행 내용
 - `MappingSyncService.syncHotels`를 "언제" 호출할지(앱 기동 시? 주기적으로?
   검색 시점?) 대안 비교 및 결정
+- `syncHotels`를 `MappingBatchUpsertService`(JdbcTemplate 네이티브 멀티로우
+  upsert)로 리팩터 — 대한민국 전체 숙박업소 규모(공공 데이터 기준 약 3~5만
+  건)를 대비 기준으로 잡고 기존 레코드당 개별 왕복 방식의 확장성 검토
 
 ### 의사결정
 
@@ -227,10 +230,38 @@
     시점 트리거의 완화판이지만 TTL 값도 "얼마나 자주 바뀌는지" 근거가 없어
     임의값이 되는 문제는 동일하게 남아 1차 범위에서는 채택 안 함
 
+- **매핑 upsert: JPA 배치(`saveAll`) 대신 JdbcTemplate 네이티브 멀티로우
+  upsert** — 사용자가 트리거 규모를 "대한민국 전체 숙박업소(약 3~5만 건)"
+  대비로 명확히 하면서, 기존 레코드당 SELECT+INSERT/UPDATE 방식(5만 건 기준
+  약 35만 회 왕복)이 트리거를 async로 바꿔도 해결 안 되는 별개 병목임이
+  드러남. `INSERT ... ON DUPLICATE KEY UPDATE`를 청크(1000건)당 멀티로우로
+  묶어 왕복을 약 50회로 줄이고, 유니크 제약에 신규/기존 판정을 위임. 상세
+  근거는 `docs/architecture.md` "매핑 배치 upsert" 참고.
+  - 검토했다 기각한 대안: JPA 배치(`saveAll`+`hibernate.jdbc.batch_size`) —
+    사전 `IN` 조회로 신규/기존을 나누는 단계가 남고, 영속성 컨텍스트에 대량
+    엔티티가 누적되며, `rewriteBatchedStatements=true` 설정 누락 시 배치
+    효과가 조용히 사라지는 위험이 있어 네이티브 멀티로우 대비 이점이 없음.
+  - Spring Batch는 여전히 미채택 — `syncHotels`가 멱등 연산이라 재시작
+    체크포인트의 이득이 크지 않고, 배치 upsert로 이미 빨라져 재실행 비용도
+    낮음. 메타 스키마(`BATCH_JOB_INSTANCE` 등) 추가 비용 대비 이득이 안 맞음.
+  - 시행착오: 리팩터 후 `MappingSyncServiceTest`의 rename 관련 테스트 2건이
+    실패 — JDBC로 직접 upsert하면 Hibernate 세션을 거치지 않아, 이전에
+    `findById`로 로드해둔 엔티티가 1차 캐시에 stale 상태로 남아있었기 때문.
+    `entityManager.clear()`를 갱신 후 재조회 전에 추가해 해결.
+  - Boot 4.1 모듈 분리 패턴 재발(JOURNAL Day 2의 Flyway/WebClient와 동일) —
+    `spring-boot-starter-data-jpa`만으로는 `JdbcTemplate` 자동설정 빈이
+    없어 `spring-boot-jdbc`를 명시적으로 추가해야 했음.
+
 ### AI 활용
 - 매핑 생성 트리거 시점의 대안들을 Claude와 비교 검토(비용 전가, 동시성,
   설계 의도 정합성, 인프라 복잡도 등 기준)한 뒤, 기존에 잠정 채택했던
   "앱 기동 시 1회+수동 재동기화" 결정을 그대로 확정함.
+- 수동 재동기화 구현 방식(Spring Batch vs `@Async`+상태 테이블)에 대해
+  Claude가 후자를 추천했고, 사용자가 "향후 전국 규모(3~5만 건) 대비"라는
+  근거를 제시 → Claude가 이 근거를 반영해 "트리거 방식과 무관하게 upsert
+  자체가 병목"이라는 점을 짚고 배치 upsert 리팩터를 먼저 제안, 사용자가
+  네이티브 멀티로우 upsert의 구체 설계(SQL, 청크 크기, 근거)를 직접 작성해
+  Claude에게 그대로 구현하도록 지시.
 
 ### 참고 자료
-- `docs/architecture.md` "매핑 생성 트리거"
+- `docs/architecture.md` "매핑 생성 트리거", "매핑 배치 upsert"

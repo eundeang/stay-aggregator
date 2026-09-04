@@ -5,13 +5,17 @@ import com.eundeang.aggregator.domain.SupplierHotel
 import com.eundeang.aggregator.domain.SupplierRoomType
 import com.eundeang.aggregator.mapping.HotelMapping
 import com.eundeang.aggregator.mapping.HotelMappingRepository
+import com.eundeang.aggregator.mapping.MappingBatchUpsertService
 import com.eundeang.aggregator.mapping.RoomTypeMappingRepository
+import jakarta.persistence.EntityManager
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest
 import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase
+import org.springframework.jdbc.core.JdbcTemplate
+import javax.sql.DataSource
 
 /**
  * docs/architecture.md "같은 공급사 상품이 항상 같은 내부 식별자로 매핑되는 것을
@@ -24,12 +28,15 @@ class MappingSyncServiceTest
     constructor(
         private val hotelMappingRepository: HotelMappingRepository,
         private val roomTypeMappingRepository: RoomTypeMappingRepository,
+        private val entityManager: EntityManager,
+        dataSource: DataSource,
     ) {
+        private val mappingBatchUpsertService = MappingBatchUpsertService(JdbcTemplate(dataSource))
         private lateinit var service: MappingSyncService
 
         @BeforeEach
         fun setUp() {
-            service = MappingSyncService(hotelMappingRepository, roomTypeMappingRepository)
+            service = MappingSyncService(mappingBatchUpsertService)
         }
 
         @Test
@@ -115,6 +122,8 @@ class MappingSyncServiceTest
                     ),
                 ),
             )
+            // JDBC upsert는 Hibernate 세션을 거치지 않아 1차 캐시가 갱신을 모른다
+            entityManager.clear()
 
             assertEquals(1, hotelMappingRepository.findAll().size)
             val updated =
@@ -156,6 +165,7 @@ class MappingSyncServiceTest
                     ),
                 ),
             )
+            entityManager.clear()
 
             assertEquals(1, roomTypeMappingRepository.findAllByHotelMapping(hotelMapping).size)
             val updated = roomTypeMappingRepository.findByHotelMappingAndExternalRoomTypeCode(hotelMapping, "DLX-TWN")!!
