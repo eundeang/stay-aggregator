@@ -4,7 +4,7 @@ import com.eundeang.aggregator.domain.SupplierCode
 import com.eundeang.aggregator.domain.SupplierHotel
 import com.eundeang.aggregator.domain.SupplierRoomType
 import org.springframework.jdbc.core.JdbcTemplate
-import org.springframework.stereotype.Component
+import org.springframework.stereotype.Repository
 
 /**
  * 신규/기존 판정을 위한 SELECT 없이 `INSERT ... ON DUPLICATE KEY UPDATE` 멀티로우로
@@ -14,8 +14,8 @@ import org.springframework.stereotype.Component
  * 근거(docs/architecture.md "매핑 배치 upsert" 참고): 레코드당 1회 왕복이던 방식을
  * 청크당 1회 왕복으로 줄임 — 5만 건 기준 청크 1000이면 약 50회.
  */
-@Component
-class MappingBatchUpsertService(
+@Repository
+class MappingBatchUpsertRepository(
     private val jdbcTemplate: JdbcTemplate,
 ) {
     fun upsertHotels(

@@ -150,6 +150,15 @@
     영속화 목적으로 재사용. `HotelMappingRepository` 제네릭 타입과 관련 테스트의
     생성 코드 전부 `HotelId`로 교체.
 
+- **패키지 규칙 위반 발견 및 수정: `MappingBatchUpsertService` → `MappingBatchUpsertRepository`** —
+  사용자가 패키지 구조를 다시 검토하다가, `mapping/`은 CLAUDE.md 규칙상
+  "Entity/Repository"만 있어야 하는데 이름이 "Service"인 클래스가 그 안에
+  들어가 있는 걸 지적. 이 클래스는 실제로 비즈니스 판단 없이 SQL 조립·실행만
+  하는 순수 데이터 접근 계층이라 역할상 Repository에 가깝다고 판단해, `application/`으로
+  옮기는 대신 이름을 `MappingBatchUpsertRepository`로 바꾸고 `@Component`를
+  `@Repository`로 교체(Spring의 예외 변환(`DataAccessException`) 혜택도 추가로
+  얻음) — `mapping/` 패키지에 그대로 유지.
+
 ### AI 활용
 - 트리거·upsert 설계는 Claude와 대안을 비교(비용 전가, 동시성, 인프라
   복잡도, DB 왕복 횟수 등 기준)한 뒤 사용자가 직접 채택.
@@ -167,6 +176,9 @@
   externalHotelCode로 분리"를 추천했으나, 사용자가 제3안(`domain.HotelId`
   하나로 통합해 mapping이 재사용)을 직접 설계해 지시 — Claude 제안을 그대로
   따르지 않고 더 나은 대안으로 대체한 사례.
+- 사용자가 패키지 구조를 직접 재검토해 `MappingBatchUpsertService`가
+  `mapping/`(CLAUDE.md 규칙상 Entity/Repository 전용)에 잘못 들어가 있는
+  걸 발견 — Claude가 만들 때 놓쳤던 규칙 위반을 사용자가 코드 리뷰로 잡음.
 
 ### 참고 자료
 - `docs/architecture.md` "매핑 생성 트리거", "매핑 배치 upsert"

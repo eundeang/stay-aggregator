@@ -7,7 +7,7 @@ import com.eundeang.aggregator.domain.SupplierCode
 import com.eundeang.aggregator.domain.SupplierHotel
 import com.eundeang.aggregator.domain.SupplierRoomType
 import com.eundeang.aggregator.mapping.HotelMappingRepository
-import com.eundeang.aggregator.mapping.MappingBatchUpsertService
+import com.eundeang.aggregator.mapping.MappingBatchUpsertRepository
 import com.eundeang.aggregator.mapping.RoomTypeMappingRepository
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
@@ -31,7 +31,7 @@ class MappingSyncRunnerTest
         private val roomTypeMappingRepository: RoomTypeMappingRepository,
         dataSource: DataSource,
     ) {
-        private val mappingSyncService = MappingSyncService(MappingBatchUpsertService(JdbcTemplate(dataSource)))
+        private val mappingSyncService = MappingSyncService(MappingBatchUpsertRepository(JdbcTemplate(dataSource)))
 
         @Test
         fun `여러 공급사의 숙소 목록을 각자의 supplier 코드로 동기화한다`() {

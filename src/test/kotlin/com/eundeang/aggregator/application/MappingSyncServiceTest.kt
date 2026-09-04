@@ -5,7 +5,7 @@ import com.eundeang.aggregator.domain.SupplierCode
 import com.eundeang.aggregator.domain.SupplierHotel
 import com.eundeang.aggregator.domain.SupplierRoomType
 import com.eundeang.aggregator.mapping.HotelMappingRepository
-import com.eundeang.aggregator.mapping.MappingBatchUpsertService
+import com.eundeang.aggregator.mapping.MappingBatchUpsertRepository
 import com.eundeang.aggregator.mapping.RoomTypeMappingRepository
 import jakarta.persistence.EntityManager
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -31,7 +31,7 @@ class MappingSyncServiceTest
         private val entityManager: EntityManager,
         dataSource: DataSource,
     ) {
-        private val mappingBatchUpsertService = MappingBatchUpsertService(JdbcTemplate(dataSource))
+        private val mappingBatchUpsertService = MappingBatchUpsertRepository(JdbcTemplate(dataSource))
         private lateinit var service: MappingSyncService
 
         @BeforeEach
