@@ -22,7 +22,9 @@ mock/         Mock Supplier (포트 9090, 별도 프로세스)
 
 **규칙**
 - 공급사 DTO는 `supplier/{공급사}/` 밖으로 나가지 않는다 (Client 구현체에서 즉시 domain으로 변환)
-- 신규 공급사 추가 = `supplier/{new}/`에 구현체 1개 추가, 나머지 레이어 수정 금지
+- 신규 공급사 추가 = `supplier/{new}/`에 구현체 1개 추가. 핵심 로직 레이어
+  (domain/application/mapping/web)는 무수정이지만, 인프라 설정
+  (WebClientConfig, application.yml)은 추가 필요. 상세: `docs/supplier-adapter.md`
 - 매핑 테이블엔 식별자만 저장. 요금/재고는 저장 안 함 (원본이 외부에 있음)
 
 ## DB
