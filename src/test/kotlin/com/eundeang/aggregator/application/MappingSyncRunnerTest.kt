@@ -1,11 +1,11 @@
 package com.eundeang.aggregator.application
 
+import com.eundeang.aggregator.domain.HotelId
 import com.eundeang.aggregator.domain.SupplierAvailabilityResult
 import com.eundeang.aggregator.domain.SupplierClient
 import com.eundeang.aggregator.domain.SupplierCode
 import com.eundeang.aggregator.domain.SupplierHotel
 import com.eundeang.aggregator.domain.SupplierRoomType
-import com.eundeang.aggregator.mapping.HotelMapping
 import com.eundeang.aggregator.mapping.HotelMappingRepository
 import com.eundeang.aggregator.mapping.MappingBatchUpsertService
 import com.eundeang.aggregator.mapping.RoomTypeMappingRepository
@@ -59,8 +59,8 @@ class MappingSyncRunnerTest
 
             runner.syncAll()
 
-            val mappingA = hotelMappingRepository.findById(HotelMapping.Id(SupplierCode.SUPPLIER_A, "A-10023")).orElseThrow()
-            val mappingB = hotelMappingRepository.findById(HotelMapping.Id(SupplierCode.SUPPLIER_B, "B77120")).orElseThrow()
+            val mappingA = hotelMappingRepository.findById(HotelId(SupplierCode.SUPPLIER_A, "A-10023")).orElseThrow()
+            val mappingB = hotelMappingRepository.findById(HotelId(SupplierCode.SUPPLIER_B, "B77120")).orElseThrow()
             assertEquals("Riverside Hotel Seoul", mappingA.hotelName)
             assertEquals("Riverside Hotel Seoul", mappingB.hotelName)
             assertEquals(1, roomTypeMappingRepository.findAllByHotelMapping(mappingA).size)

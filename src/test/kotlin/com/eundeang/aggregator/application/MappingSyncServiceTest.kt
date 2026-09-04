@@ -1,9 +1,9 @@
 package com.eundeang.aggregator.application
 
+import com.eundeang.aggregator.domain.HotelId
 import com.eundeang.aggregator.domain.SupplierCode
 import com.eundeang.aggregator.domain.SupplierHotel
 import com.eundeang.aggregator.domain.SupplierRoomType
-import com.eundeang.aggregator.mapping.HotelMapping
 import com.eundeang.aggregator.mapping.HotelMappingRepository
 import com.eundeang.aggregator.mapping.MappingBatchUpsertService
 import com.eundeang.aggregator.mapping.RoomTypeMappingRepository
@@ -57,7 +57,7 @@ class MappingSyncServiceTest
 
             val hotelMapping =
                 hotelMappingRepository
-                    .findById(HotelMapping.Id(SupplierCode.SUPPLIER_A, "A-10023"))
+                    .findById(HotelId(SupplierCode.SUPPLIER_A, "A-10023"))
                     .orElseThrow()
             assertEquals("Riverside Hotel Seoul", hotelMapping.hotelName)
 
@@ -89,7 +89,7 @@ class MappingSyncServiceTest
 
             val hotelMapping =
                 hotelMappingRepository
-                    .findById(HotelMapping.Id(SupplierCode.SUPPLIER_A, "A-10023"))
+                    .findById(HotelId(SupplierCode.SUPPLIER_A, "A-10023"))
                     .orElseThrow()
             assertEquals(1, roomTypeMappingRepository.findAllByHotelMapping(hotelMapping).size)
         }
@@ -108,7 +108,7 @@ class MappingSyncServiceTest
             )
             val idBeforeRename =
                 hotelMappingRepository
-                    .findById(HotelMapping.Id(SupplierCode.SUPPLIER_A, "A-10023"))
+                    .findById(HotelId(SupplierCode.SUPPLIER_A, "A-10023"))
                     .orElseThrow()
                     .id
 
@@ -128,7 +128,7 @@ class MappingSyncServiceTest
             assertEquals(1, hotelMappingRepository.findAll().size)
             val updated =
                 hotelMappingRepository
-                    .findById(HotelMapping.Id(SupplierCode.SUPPLIER_A, "A-10023"))
+                    .findById(HotelId(SupplierCode.SUPPLIER_A, "A-10023"))
                     .orElseThrow()
             assertEquals("Riverside Hotel Seoul (Renamed)", updated.hotelName)
             assertEquals(idBeforeRename, updated.id)
@@ -148,7 +148,7 @@ class MappingSyncServiceTest
             )
             val hotelMapping =
                 hotelMappingRepository
-                    .findById(HotelMapping.Id(SupplierCode.SUPPLIER_A, "A-10023"))
+                    .findById(HotelId(SupplierCode.SUPPLIER_A, "A-10023"))
                     .orElseThrow()
             val idBeforeUpdate =
                 roomTypeMappingRepository
@@ -194,11 +194,11 @@ class MappingSyncServiceTest
 
             val hotelA =
                 hotelMappingRepository
-                    .findById(HotelMapping.Id(SupplierCode.SUPPLIER_A, "A-10023"))
+                    .findById(HotelId(SupplierCode.SUPPLIER_A, "A-10023"))
                     .orElseThrow()
             val hotelB =
                 hotelMappingRepository
-                    .findById(HotelMapping.Id(SupplierCode.SUPPLIER_A, "A-20045"))
+                    .findById(HotelId(SupplierCode.SUPPLIER_A, "A-20045"))
                     .orElseThrow()
 
             val roomA = roomTypeMappingRepository.findByHotelMappingAndExternalRoomTypeCode(hotelA, "STD")!!

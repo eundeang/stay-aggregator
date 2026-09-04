@@ -1,3 +1,5 @@
 package com.eundeang.aggregator.domain
 
-class Stay
+data class Stay(
+    val hotelId: HotelId,
+)

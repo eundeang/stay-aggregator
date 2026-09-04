@@ -134,6 +134,22 @@
     테스트 시작 전에 이미 커밋돼 있던 데이터는 격리해주지 않는다는 걸 확인.
     dev DB를 수동으로 비워 해결 — 재발 방지용 정리 로직 추가는 아직 안 함.
 
+- **표준 모델(`Stay` 등) 착수 전 정리: 공급사 인원 필터링 규칙 문서화 +
+  `HotelId` 타입 통합** — `Stay`의 `hotelId` 필드 타입을 정하려던 중 두 가지
+  선행 정리가 필요했음.
+  - 공급사는 요청 인원(`adults+children`)을 수용 못 하는 객실 타입은 재고
+    0이 아니라 응답에서 아예 제외한다는 규칙을 확인 — `docs/supplier-api-spec.md`
+    "공통 규약"에 추가. 매핑엔 있지만 이번 응답엔 없는 객실 타입 처리(제외)는
+    `readme.md` "가정" 섹션에 이미 있어 링크만 추가.
+  - `mapping.HotelMapping`이 자체 nested `Id` 클래스를 갖는 대신, `domain.HotelId`
+    (동일한 `(supplier, externalHotelCode)` 개념)를 `@EmbeddedId`로 그대로
+    재사용하도록 리팩터. `Stay.hotelId`가 `mapping.HotelMapping.Id`(JPA 타입)를
+    직접 참조하면 domain이 mapping을 알게 되어 계층 순수성이 깨지고, 그렇다고
+    domain에 완전히 별개의 동일 개념 타입을 새로 만들면 같은 식별자가 두 타입으로
+    중복되는 문제가 있어 절충 — domain이 식별자 타입을 소유하고 mapping은
+    영속화 목적으로 재사용. `HotelMappingRepository` 제네릭 타입과 관련 테스트의
+    생성 코드 전부 `HotelId`로 교체.
+
 ### AI 활용
 - 트리거·upsert 설계는 Claude와 대안을 비교(비용 전가, 동시성, 인프라
   복잡도, DB 왕복 횟수 등 기준)한 뒤 사용자가 직접 채택.
@@ -147,6 +163,10 @@
 - 사용자가 Claude에게 `docs/supplier-api-spec.md` 충족 여부를 점검해달라고
   요청 → Claude가 항목별 대조 후 `X-Api-Key` 누락과 요청 쪽 테스트 공백을
   보고, 사용자가 반영을 지시해 구현·테스트 보강까지 진행.
+- `Stay.hotelId` 타입을 Claude가 "domain 순수성 유지를 위해 supplier+
+  externalHotelCode로 분리"를 추천했으나, 사용자가 제3안(`domain.HotelId`
+  하나로 통합해 mapping이 재사용)을 직접 설계해 지시 — Claude 제안을 그대로
+  따르지 않고 더 나은 대안으로 대체한 사례.
 
 ### 참고 자료
 - `docs/architecture.md` "매핑 생성 트리거", "매핑 배치 upsert"
