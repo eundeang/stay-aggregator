@@ -88,6 +88,7 @@
   확장성 검토 및 리팩터
 - `MappingSyncRunner`(`ApplicationRunner`) 구현 및 Mock Supplier+실제 앱
   기동으로 통합 검증(매핑 테이블에 A/B 공급사 데이터 upsert 확인)
+- `docs/supplier-api-spec.md` 규약을 실제 구현과 대조 점검
 
 ### 의사결정
 
@@ -118,6 +119,21 @@
   역할을 하고, 이 과제 규모에서 별도 엔드포인트 구현의 실익이 크지 않다고
   보고 제외 — `MappingSyncController`는 만들었다가 삭제.
 
+- **`X-Api-Key` 인증 헤더 누락 발견 및 추가** — 스펙 대조 점검 중, "공통 규약"에
+  명시된 인증 헤더를 `WebClientConfig`/어댑터 어디에서도 보내지 않고 있었던
+  걸 발견. `WebClientConfig`에 공급사별 `api-key`를 `application.yaml`에서
+  읽어 `defaultHeader`로 설정하도록 수정. 기존 어댑터 테스트는 응답 파싱만
+  검증하고 `server.takeRequest()`로 요청 자체를 검증한 적이 없어서 이 누락이
+  안 걸렸던 것 — 두 어댑터 테스트에 "X-Api-Key 헤더를 포함한다" 케이스를
+  추가해 요청 쪽 규약도 테스트로 고정.
+  - 시행착오: 수정 후 전체 테스트를 돌리자 무관한 테스트(`MappingSyncServiceTest`,
+    `MappingSyncRunnerTest`) 3건이 실패 — 원인은 이전에 수동 `bootRun`으로
+    실제 dev MySQL에 커밋해둔 매핑 데이터가 남아있었고, 일부 테스트가
+    `findAll().size`로 테이블 전체 상태를 단언해서 그 잔여 데이터와 충돌한
+    것. `@DataJpaTest`의 트랜잭션 롤백은 테스트가 만든 데이터만 되돌릴 뿐,
+    테스트 시작 전에 이미 커밋돼 있던 데이터는 격리해주지 않는다는 걸 확인.
+    dev DB를 수동으로 비워 해결 — 재발 방지용 정리 로직 추가는 아직 안 함.
+
 ### AI 활용
 - 트리거·upsert 설계는 Claude와 대안을 비교(비용 전가, 동시성, 인프라
   복잡도, DB 왕복 횟수 등 기준)한 뒤 사용자가 직접 채택.
@@ -128,6 +144,9 @@
   진행)는 `AggregatorApplicationTests.contextLoads()`가 fail-fast 방식의
   문제(공급사 하나만 안 떠도 앱 전체 기동 실패, 테스트도 실제 서비스
   가동 여부에 결합됨)를 잡아낸 뒤 Claude가 판단해 반영 — 사용자 확인 전.
+- 사용자가 Claude에게 `docs/supplier-api-spec.md` 충족 여부를 점검해달라고
+  요청 → Claude가 항목별 대조 후 `X-Api-Key` 누락과 요청 쪽 테스트 공백을
+  보고, 사용자가 반영을 지시해 구현·테스트 보강까지 진행.
 
 ### 참고 자료
 - `docs/architecture.md` "매핑 생성 트리거", "매핑 배치 upsert"

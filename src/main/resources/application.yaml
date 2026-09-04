@@ -15,5 +15,7 @@ spring:
 supplier:
   a:
     base-url: http://localhost:9090/a
+    api-key: mock-supplier-a-key
   b:
     base-url: http://localhost:9090/b
+    api-key: mock-supplier-b-key

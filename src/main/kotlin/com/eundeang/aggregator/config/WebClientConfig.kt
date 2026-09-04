@@ -20,20 +20,23 @@ class WebClientConfig {
     fun supplierAWebClient(
         builder: WebClient.Builder,
         @Value("\${supplier.a.base-url}") baseUrl: String,
-    ): WebClient = buildWebClient(builder, baseUrl)
+        @Value("\${supplier.a.api-key}") apiKey: String,
+    ): WebClient = buildWebClient(builder, baseUrl, apiKey)
 
     @Bean
     @Qualifier("supplierBWebClient")
     fun supplierBWebClient(
         builder: WebClient.Builder,
         @Value("\${supplier.b.base-url}") baseUrl: String,
-    ): WebClient = buildWebClient(builder, baseUrl)
+        @Value("\${supplier.b.api-key}") apiKey: String,
+    ): WebClient = buildWebClient(builder, baseUrl, apiKey)
 
     // builder는 Boot가 프로토타입 빈으로 제공 — 앱 전역 Jackson 설정을 그대로 물려받으면서
     // A/B 호출부마다 독립된 인스턴스를 쓸 수 있다.
     private fun buildWebClient(
         builder: WebClient.Builder,
         baseUrl: String,
+        apiKey: String,
     ): WebClient {
         val jdkHttpClient =
             HttpClient
@@ -46,6 +49,7 @@ class WebClientConfig {
             }
         return builder
             .baseUrl(baseUrl)
+            .defaultHeader("X-Api-Key", apiKey)
             .clientConnector(connector)
             .build()
     }

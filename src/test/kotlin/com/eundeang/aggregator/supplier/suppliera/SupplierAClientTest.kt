@@ -169,17 +169,31 @@ class SupplierAClientTest :
             val failure = result.shouldBeInstanceOf<SupplierAvailabilityResult.Failure>()
             failure.reason shouldBe SupplierFailureReason.TIMEOUT
         }
+
+        test("요청에 X-Api-Key 헤더를 포함한다") {
+            server.enqueue(
+                MockResponse()
+                    .setBody("""{ "items": [] }""")
+                    .addHeader("Content-Type", "application/json"),
+            )
+
+            client.fetchHotels()
+
+            server.takeRequest().getHeader("X-Api-Key") shouldBe "test-api-key"
+        }
     })
 
 private fun webClientFor(
     server: MockWebServer,
     readTimeoutMillis: Long,
+    apiKey: String = "test-api-key",
 ): WebClient {
     val jdkHttpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(3)).build()
     val connector = JdkClientHttpConnector(jdkHttpClient).apply { setReadTimeout(Duration.ofMillis(readTimeoutMillis)) }
     return WebClient
         .builder()
         .baseUrl(server.url("/").toString())
+        .defaultHeader("X-Api-Key", apiKey)
         .clientConnector(connector)
         .build()
 }
