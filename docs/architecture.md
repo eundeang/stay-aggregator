@@ -190,32 +190,3 @@ ON DUPLICATE KEY UPDATE`를 청크(기본 1000건)당 멀티로우로 묶어 실
   — §3.2④(부분 실패 허용)이 실제로 동작함을 확인.
 
 WebClient 설정은 `config/WebClientConfig.kt` 참고.
-
-## 매핑 동기화 실패 가시성: 운영자에게만, 검색 API 클라이언트에겐 숨김
-
-앱 기동 시 공급사 A/B가 둘 다(혹은 하나만) 다운돼 있으면 `MappingSyncRunner`가
-매핑을 하나도 못 만들고, 그 상태로 검색 API를 호출하면
-`{"results": [], "partialFailures": []}`가 나간다 — 매핑이 없으니 그 공급사에
-물어볼 숙소 코드 자체가 없어 `fetchAvailability` 호출 자체가 발생하지 않고,
-따라서 `partialFailures`에도 아무것도 안 남는다.
-
-**결정: 이 상태를 검색 API 응답에서 고치지 않는다.** 우리는 공급사 상품을
-대신 판매하는 입장이라, 공급사 장애를 검색 API 응답에 노출하면 마치 **우리
-서비스 자체의 장애**처럼 보인다. 반대로 이 정보는 운영자에게는 반드시
-필요하다(공급사 연동이 끊긴 채로 서비스가 계속 돌고 있다는 뜻이므로). 그래서
-"클라이언트에겐 안 보이되 운영자에겐 보인다"는 원칙으로 두 채널을 분리했다.
-
-**구현**: `MappingSyncStatus`(공급사별 마지막 동기화 성공/실패를 메모리에
-기록) + `MappingSyncHealthIndicator`(Spring Boot Actuator 커스텀
-`HealthIndicator`, `/actuator/health`의 `mappingSync` 컴포넌트로 노출).
-`StaySearchService`는 이 상태를 전혀 참조하지 않아 검색 API 응답은 그대로다.
-
-**주의(배포 시 참고)**: `/actuator/health`(루트) 상태는 `mappingSync`가
-DOWN이면 전체가 `DOWN`으로 집계된다 — 이건 의도된 동작(운영자가 루트
-엔드포인트에서 바로 이상 여부를 알아채야 하므로). 다만 Kubernetes 같은 환경의
-liveness/readiness probe는 **루트가 아니라 `/actuator/health/liveness`,
-`/actuator/health/readiness`를 봐야 한다** — 커스텀 `HealthIndicator`는
-Spring Boot가 이 두 그룹에 자동으로 편입시키지 않으므로, 실제로 Mock을
-내려서 확인한 결과도 `livenessState`/`readinessState`는 계속 `UP`으로 유지된
-채 `mappingSync`만 `DOWN`이었다. 공급사 장애로 우리 앱이 재시작되거나
-트래픽에서 빠지는 걸 막기 위한 설계다.

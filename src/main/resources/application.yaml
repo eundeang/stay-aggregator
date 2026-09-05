@@ -19,10 +19,3 @@ supplier:
   b:
     base-url: http://localhost:9090/b
     api-key: mock-supplier-b-key
-
-# 공급사 매핑 동기화 상태(mappingSync)는 운영 확인 전용이라 상세를 노출한다.
-# liveness/readiness에는 영향 없음 — MappingSyncHealthIndicator 참고.
-management:
-  endpoint:
-    health:
-      show-details: always
