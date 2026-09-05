@@ -74,6 +74,10 @@ class SupplierAController(private val modeStore: ModeStore) {
                 Thread.sleep(NO_RESPONSE_DELAY_MS)
                 null
             }
+            MockMode.DELAY -> {
+                Thread.sleep(modeStore.getDelaySeconds("a") * 1000)
+                null
+            }
         }
     }
 

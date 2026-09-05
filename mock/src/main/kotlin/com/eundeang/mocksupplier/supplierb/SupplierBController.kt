@@ -68,8 +68,10 @@ class SupplierBController(private val modeStore: ModeStore) {
     }
 
     private fun applyDelay() {
-        if (modeStore.get("b") == MockMode.NO_RESPONSE) {
-            Thread.sleep(NO_RESPONSE_DELAY_MS)
+        when (modeStore.get("b")) {
+            MockMode.NO_RESPONSE -> Thread.sleep(NO_RESPONSE_DELAY_MS)
+            MockMode.DELAY -> Thread.sleep(modeStore.getDelaySeconds("b") * 1000)
+            else -> {}
         }
     }
 

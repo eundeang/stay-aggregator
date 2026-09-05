@@ -24,12 +24,19 @@ Mock 자체는 채점 대상이 아니지만, **연동 견고성을 검증하는
 |---|---|---|
 | `normal` | A.1/A.2 성공 응답 | 정상 흐름 |
 | `error` | A: HTTP 503 / B: HTTP 200 + `resultCode: E503` | 실패 판정 통일 |
-| `no-response` | 연결은 되나 응답 없음 (또는 매우 긴 지연) | 타임아웃, 부분 실패 |
+| `no-response` | 연결은 되나 매우 긴 지연(30초) 후 정상 응답 | 사실상 무응답 취급, 타임아웃 |
+| `delay` | 지정한 초(`seconds`)만큼 대기한 뒤 정상 응답 | 타임아웃 경계값 검증(§3.2④) |
 
 전환은 컨트롤 엔드포인트로:
 ```
-POST /control/{a|b}/mode?value={normal|error|no-response}
+POST /control/{a|b}/mode?value={normal|error|no-response|delay}
+POST /control/{a|b}/mode?value=delay&seconds=6   # delay는 seconds로 지연 시간 지정(기본 5초)
 ```
+
+`delay`는 `no-response`(고정 30초, "사실상 무응답")와 달리 지연 시간을 초 단위로
+자유롭게 조절할 수 있어, 타임아웃 값의 경계(예: 타임아웃보다 짧으면 성공,
+길면 실패)를 정확히 검증하는 용도로 쓴다. 근거: `docs/architecture.md`
+"타임아웃 값".
 
 숙소 목록 API(①)는 장애 모드를 걸지 않는다. 필요하면 같은 방식으로 확장 가능하지만,
 "매핑 생성 단계 자체가 실패하면 어떻게 할지"는 별도 설계 판단(매핑 생성 로직
