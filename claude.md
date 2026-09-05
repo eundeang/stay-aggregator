@@ -26,6 +26,11 @@ mock/         Mock Supplier (포트 9090, 별도 프로세스)
   (domain/application/mapping/web)는 무수정이지만, 인프라 설정
   (WebClientConfig, application.yml)은 추가 필요. 상세: `docs/supplier-adapter.md`
 - 매핑 테이블엔 식별자만 저장. 요금/재고는 저장 안 함 (원본이 외부에 있음)
+- 신규 컨트롤러·엔드포인트 추가 시 Swagger 문서화 필수 — 클래스에 `@Tag`,
+  각 메서드에 `@Operation`(파라미터 설명이 필요하면 `@Parameter`)을 붙인다.
+  의존성(`springdoc-openapi-starter-webmvc-ui`)은 메인 앱·mock 모듈 모두
+  이미 추가돼 있음. 인터페이스로 분리하지 않고 컨트롤러에 직접 붙인다
+  (지금 규모에서 분리는 과함 — JOURNAL.md 참고)
 
 ## DB
 
