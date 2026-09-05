@@ -10,7 +10,7 @@
 docker compose up -d
 
 # 2. Mock Supplier 기동 (별도 포트 9090)
-./gradlew :mock-supplier:bootRun   # 또는 실제 구성한 방식에 맞게 수정
+./gradlew :mock:bootRun
 
 # 3. 애플리케이션 기동
 ./gradlew bootRun
