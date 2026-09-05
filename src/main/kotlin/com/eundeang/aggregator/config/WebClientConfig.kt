@@ -9,9 +9,10 @@ import org.springframework.web.reactive.function.client.WebClient
 import java.net.http.HttpClient
 import java.time.Duration
 
-// TODO: §3.2④ 연동 견고성 설계에서 근거와 함께 확정
-private val CONNECT_TIMEOUT = Duration.ofSeconds(3)
-private val RESPONSE_TIMEOUT = Duration.ofSeconds(5)
+// 근거: docs/architecture.md "타임아웃 값" — 공급사 응답 시간에 대한 스펙/SLA가
+// 없어 측정이 아니라 판단으로 정함(가정, readme.md "가정" 참고).
+private val CONNECT_TIMEOUT = Duration.ofSeconds(2)
+private val RESPONSE_TIMEOUT = Duration.ofSeconds(4)
 
 @Configuration
 class WebClientConfig {
