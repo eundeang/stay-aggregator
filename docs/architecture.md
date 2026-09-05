@@ -223,3 +223,31 @@ Actuator 같은 별도 운영 채널로만 노출하는 방식을 먼저 시도�
   `StaySearchService`가 판정**한다 — 공급사를 호출하기도 전에 우리 쪽
   매핑 데이터만 보고 알 수 있기 때문. 상세: `docs/supplier-adapter.md`
   "실패 판정 통일".
+
+## 아키텍처 규칙을 코드로 검증: Konsist
+
+CLAUDE.md/이 문서에 적힌 패키지 규칙(예: "domain은 다른 계층을 모른다",
+"mapping엔 Entity/Repository만")은 문서로만 남아있으면 시간이 지나면서
+어겨져도 아무도 모른다 — 실제로 `MappingBatchUpsertService`가
+`mapping/` 규칙을 어긴 채로 한동안 있다가 사람이 코드 리뷰로 겨우
+잡아냈다. `src/test/kotlin/.../ArchitectureTest.kt`가 이 규칙들을
+[Konsist](https://konsist.lemonappdev.com)로 커밋마다 자동 검증한다.
+
+**검증하는 규칙**
+- `domain`은 `application`/`mapping`/`supplier`/`web`/`config` 무엇에도
+  의존하지 않는다 (계층 순수성)
+- `SupplierClient`를 구현하는 클래스는 `@Component`가 붙어있다 —
+  빠뜨리면 Spring이 조용히 제외시키는데 아무 테스트도 못 잡던 지점
+- `supplier/{공급사}/`의 DTO(`*Dto`)는 `internal`이다
+- `mapping/`엔 `@Entity`/`@Embeddable`/`@Repository`(또는 이름이
+  `*Repository`인 인터페이스)만 있다
+
+**행동 검증(`supplierClientContract`)과의 차이**: 행동 검증은 "런타임에
+값이 맞는지"를 테스트 코드로 확인하는 것이고(이건 그냥 테스트다), 이
+아키텍처 테스트는 "코드가 애초에 설계한 구조·의존성 방향대로 짜여
+있는지"를 정적으로 확인한다 — 일반 테스트로는 할 수 없어서 별도
+도구(Konsist)가 필요하다.
+
+**검증**: `SupplierARoomTypeDto`를 일부러 `internal` 없이 만들고 실행 →
+"공급사 DTO는 internal이어야 한다" 테스트가 정확히 실패하는 것 확인 후
+원복.

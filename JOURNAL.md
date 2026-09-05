@@ -305,9 +305,29 @@
     실행 → 하네스가 정확히 그 케이스만 잡아내는 것을 확인 후 원복. 리팩터
     전후로 테스트 개수(공급사당 9개, 전체 38개)와 결과가 그대로임도 확인.
 
+- 사용자가 "그건 행동 검증(하네스는 사실 의존성이 설계대로 되어 있는지
+  검증하는 것 아니냐)"고 지적 → `supplierClientContract`는 그냥 재사용되는
+  테스트 코드일 뿐, "하네스 아키텍처"의 진짜 의미는 **구조·의존성이
+  설계대로인지를 정적으로 검증**하는 것이라는 걸 사용자가 두 차례에 걸쳐
+  바로잡음. Claude가 처음에 개념을 잘못 나눴던 걸 인정하고 방향 수정.
+- **Konsist로 아키텍처 의존성 테스트 추가** — `ArchitectureTest.kt`가
+  domain 순수성(다른 계층 의존 금지), 계층별 의존 방향(mapping/supplier→
+  domain만, application→domain+mapping, web→application+domain,
+  config→의존 없음), `SupplierClient` 구현체의 `@Component` 존재,
+  `supplier/` DTO의 `internal` 여부, `mapping/` 패키지에 Entity/
+  Embeddable/Repository 외 다른 게 없는지를 매 실행마다 검증.
+  - 검증: `SupplierARoomTypeDto`에서 `internal`을 일부러 지우고 실행 →
+    "공급사 DTO는 internal이어야 한다" 테스트가 정확히 그 지점에서
+    실패하는 것 확인 후 원복.
+  - Konsist API(0.17.3)가 `dependsOn`/`assertArchitecture`를 Kotlin
+    "멤버 확장 함수"로 선언해서, 문서의 `scope.assertArchitecture { }`
+    형태로 쓰려면 `KoArchitectureCreator.assertArchitecture`를 멤버로
+    직접 import해야 함 — javap로 바이트코드만 봐서는 이 구분이 안 보여서
+    한동안 헤맴.
+
 ### 참고 자료
 - `docs/domain-model.md` "Kotlin 도메인 모델", "응답 구조"
 - `docs/supplier-adapter.md` "왜 도메인 모델을 바로 안 만들고 중간 타입을 두는가",
   "신규 공급사가 제대로 만들어졌는지 검증: 공통 계약 테스트 하네스"
 - `docs/architecture.md` "타임아웃 값", "매핑 없는 공급사 처리",
-  `docs/mock-supplier.md` "모드"
+  "아키텍처 규칙을 코드로 검증: Konsist", `docs/mock-supplier.md` "모드"
