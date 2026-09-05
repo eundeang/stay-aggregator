@@ -182,3 +182,55 @@
 
 ### 참고 자료
 - `docs/architecture.md` "매핑 생성 트리거", "매핑 배치 upsert"
+
+---
+
+## Day 4 - StaySearchService/StaySearchController 구현 (핵심 검색 흐름)
+
+### 수행 내용
+- `Stay`/`RoomTypeOffer`/`Price`/`NightlyRate` 표준 모델 필드 확정(`docs/domain-model.md`
+  초안 그대로), 미사용 `RoomAvailability.kt` 스켈레톤 제거
+- `StaySearchService`: 매핑 전체 조회(맵 캐싱) → 공급사별 50개 청크 분할 →
+  병렬 `fetchAvailability` → 내부 식별자 resolve → `Stay` 조립
+- `StaySearchController`: `GET /api/v1/stays/search`
+- Mock Supplier + 실제 앱 기동으로 통합 검증 (curl로 실제 응답 확인,
+  `suspend fun` 컨트롤러가 Spring MVC에서 정상 동작함을 확인)
+- 통합 테스트 4개(전체 정상/한 공급사 실패/둘 다 실패/51개 이상 청크 분할),
+  전체 스위트 37개 + ktlint 통과 확인 후 커밋
+
+### 의사결정
+
+- **청크 분할: 공급사별 50개, `List.chunked(50)`** — `docs/supplier-api-spec.md`의
+  hotelCodes 50개 제한을 지금 실제로 트리거하는 첫 호출부라 여기서 처리.
+  Kotlin 표준 라이브러리로 충분해 별도 유틸 없이 인라인 처리.
+
+- **응답 조립은 매핑이 아니라 응답을 순회** — 매핑 테이블 기준으로 순회하면서
+  없는 항목을 `availableRooms: 0`으로 채우면 "정말 매진"과 "인원 초과 등으로
+  응답에 아예 없음"이 구분 안 됨. `readme.md` "가정"에 이미 있는 원칙을 그대로
+  구현에 반영 — 공급사 응답에 실제로 있는 offer만 순회해서 `RoomTypeOffer` 생성.
+
+- **부분 실패 표현: 청크마다 실패를 별도 항목으로 기록** — 공급사 하나가 여러
+  청크로 나뉘어 호출되면(51개 이상) 청크별로 성공/실패가 갈릴 수 있는데,
+  `docs/domain-model.md`의 `partialFailures` 예시는 이 경우를 명시하지 않음.
+  같은 `supplier` 값을 가진 항목이 여러 개 쌓이더라도 실패를 숨기지 않고
+  전부 노출하는 쪽으로 처리 — `PartialFailure`에 청크 인덱스 등 필드를
+  추가하지 않고 리스트에 자연스럽게 여러 건 쌓이게 두는 절충.
+
+- **매핑 조회 결과를 메모리 맵으로 캐싱 후 조립** — 오퍼 하나당 매핑을 매번
+  DB로 조회하지 않고, 검색 요청당 `HotelMapping`/`RoomTypeMapping` 전체를
+  한 번씩만 조회해 `Map`으로 변환한 뒤 그 맵으로 resolve. 매핑 upsert 때
+  겪었던 N+1 문제(JOURNAL Day 3)와 같은 함정을 조립 단계에서도 미리 피함.
+
+- **매핑에 없는 응답 항목은 건너뜀(예외 아님)** — 공급사가 우리 매핑에 없는
+  숙소/객실타입 코드로 응답하는 경우(원칙적으로 없어야 하지만 외부 시스템이라
+  보장 안 됨) 전체 검색을 실패시키지 않고 해당 항목만 건너뜀 — 공급사별 실패
+  격리(`MappingSyncRunner`, Day 3)와 같은 결의 방어적 설계.
+
+### AI 활용
+- 사용자가 전체 흐름·청크 분할·부분실패 처리·테스트 시나리오까지 상세히
+  설계해서 지시 → Claude는 그대로 구현하고, 문서에 없던 세부(청크별 부분
+  실패 표현 방식)는 직접 판단해 근거와 함께 반영.
+
+### 참고 자료
+- `docs/domain-model.md` "Kotlin 도메인 모델", "응답 구조"
+- `docs/supplier-adapter.md` "왜 도메인 모델을 바로 안 만들고 중간 타입을 두는가"
