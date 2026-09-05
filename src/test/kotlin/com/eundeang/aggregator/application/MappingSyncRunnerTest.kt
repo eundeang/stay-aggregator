@@ -47,6 +47,7 @@ class MappingSyncRunnerTest
                     hotelName = "Riverside Hotel Seoul",
                     roomTypes = listOf(SupplierRoomType("STD", "Standard", 2)),
                 )
+            val mappingSyncStatus = MappingSyncStatus()
             val runner =
                 MappingSyncRunner(
                     supplierClients =
@@ -55,6 +56,7 @@ class MappingSyncRunnerTest
                             FakeSupplierClient(SupplierCode.SUPPLIER_B, listOf(hotelB)),
                         ),
                     mappingSyncService = mappingSyncService,
+                    mappingSyncStatus = mappingSyncStatus,
                 )
 
             runner.syncAll()
@@ -65,6 +67,41 @@ class MappingSyncRunnerTest
             assertEquals("Riverside Hotel Seoul", mappingB.hotelName)
             assertEquals(1, roomTypeMappingRepository.findAllByHotelMapping(mappingA).size)
             assertEquals(1, roomTypeMappingRepository.findAllByHotelMapping(mappingB).size)
+
+            val statusSnapshot = mappingSyncStatus.snapshot()
+            assertEquals(true, statusSnapshot.getValue(SupplierCode.SUPPLIER_A).succeeded)
+            assertEquals(true, statusSnapshot.getValue(SupplierCode.SUPPLIER_B).succeeded)
+        }
+
+        @Test
+        fun `공급사 동기화가 실패하면 상태에 실패로 기록된다`() {
+            val mappingSyncStatus = MappingSyncStatus()
+            val failingClient =
+                object : SupplierClient {
+                    override val supplier = SupplierCode.SUPPLIER_A
+
+                    override suspend fun fetchHotels(): List<SupplierHotel> = throw IllegalStateException("연결 실패")
+
+                    override suspend fun fetchAvailability(
+                        externalHotelCodes: List<String>,
+                        checkIn: LocalDate,
+                        checkOut: LocalDate,
+                        adults: Int,
+                        children: Int,
+                    ): SupplierAvailabilityResult = throw UnsupportedOperationException("이 테스트에서는 사용되지 않음")
+                }
+            val runner =
+                MappingSyncRunner(
+                    supplierClients = listOf(failingClient),
+                    mappingSyncService = mappingSyncService,
+                    mappingSyncStatus = mappingSyncStatus,
+                )
+
+            runner.syncAll()
+
+            val outcome = mappingSyncStatus.snapshot().getValue(SupplierCode.SUPPLIER_A)
+            assertEquals(false, outcome.succeeded)
+            assertEquals("연결 실패", outcome.errorMessage)
         }
 
         private class FakeSupplierClient(
