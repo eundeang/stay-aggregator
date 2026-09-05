@@ -255,6 +255,27 @@
   직접 부착) 유지. `CLAUDE.md`에 "신규 컨트롤러엔 Swagger 필수, 인터페이스
   분리는 안 함"을 규칙으로 추가해 앞으로도 이 판단이 자동으로 적용되게 함.
 
+- **매핑 동기화 실패 가시성: 클라이언트에겐 숨기고 운영자에게만 노출** —
+  기동 시 매핑 동기화가 실패하면(공급사 다운) 검색 API는 매핑이 없어 그
+  공급사에 물어볼 코드 자체가 없으니 `{"results": [], "partialFailures": []}`가
+  조용히 나가는데, 이걸 "검색 API에서 실패 신호를 남겨야 하나"로 고민하다가
+  사용자가 "우리는 공급사 상품을 대신 파는 입장이라 공급사 장애가 우리
+  서비스 장애처럼 보이면 안 된다"는 근거로 정리 — 검색 API 응답은 그대로
+  두고, 운영자용 채널만 별도로 추가하기로 함.
+  - `MappingSyncStatus`(공급사별 마지막 동기화 성공/실패를 메모리에 기록) +
+    `MappingSyncHealthIndicator`(Actuator 커스텀 `HealthIndicator`,
+    `/actuator/health`의 `mappingSync` 컴포넌트)로 구현. `StaySearchService`는
+    이 상태를 참조하지 않아 검색 응답에 영향 없음 — 실제로 Mock을 내려서
+    검색 API가 그대로임을 재확인.
+  - 커스텀 `HealthIndicator`는 liveness/readiness 그룹에 자동 편입 안 됨을
+    실측으로 확인(`mappingSync`만 DOWN, `livenessState`/`readinessState`는
+    UP 유지) — 공급사 장애로 앱이 재시작되거나 트래픽에서 빠지는 걸 막기
+    위한 설계가 실제로 그렇게 동작함. 상세: `docs/architecture.md` "매핑
+    동기화 실패 가시성".
+  - Boot 4.1에서 `Health`/`HealthIndicator`가 `spring-boot-actuate.health`
+    에서 `spring-boot-health` 모듈의 `boot.health.contributor` 패키지로
+    이동 — Flyway/WebClient/JdbcTemplate과 같은 반복 패턴(JOURNAL Day 2/3).
+
 ### AI 활용
 - 사용자가 전체 흐름·청크 분할·부분실패 처리·테스트 시나리오까지 상세히
   설계해서 지시 → Claude는 그대로 구현하고, 문서에 없던 세부(청크별 부분
@@ -265,8 +286,14 @@
 - 사용자가 Swagger 인터페이스 분리를 제안 → Claude가 지금 규모엔 과하다고
   반대 근거를 제시하며 반박 → 사용자가 Claude 판단을 받아들여 현재 방식
   유지로 정리. Claude가 사용자 제안을 그대로 따르지 않고 이견을 낸 사례.
+- 사용자가 "공급사 다운 시 앱이 안 뜨는 문제"를 보고했으나 Claude가 재현
+  시도 → 이미 고쳐진 상태(정상 기동)임을 실측으로 확인, 재현 조건을
+  되물음. 이후 대화 과정에서 진짜 이슈(검색 API가 장애 상황도 정상 빈
+  결과와 구분 안 됨)를 함께 찾아내 이번 결정으로 이어짐 — 처음 보고된
+  증상과 실제로 다뤄야 했던 문제가 달랐던 사례.
 
 ### 참고 자료
 - `docs/domain-model.md` "Kotlin 도메인 모델", "응답 구조"
 - `docs/supplier-adapter.md` "왜 도메인 모델을 바로 안 만들고 중간 타입을 두는가"
-- `docs/architecture.md` "타임아웃 값", `docs/mock-supplier.md` "모드"
+- `docs/architecture.md` "타임아웃 값", "매핑 동기화 실패 가시성",
+  `docs/mock-supplier.md` "모드"

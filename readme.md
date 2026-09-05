@@ -59,6 +59,12 @@ Supplier A(일자별 단가, 세금 별도)와 B(숙박 전체 총액, 세금 �
 매핑만 DB에 저장한다. 숙소 목록은 자주 안 바뀌고 재고·요금은 매번 바뀌는
 성격 차이를 반영한 설계.
 
+기동 시 매핑 동기화가 실패해도(공급사 다운 등) 검색 API 응답은 그대로
+`{"results": [], "partialFailures": []}`로 조용히 내려간다 — 공급사 상품을
+대신 파는 입장에서 공급사 장애를 우리 서비스 장애처럼 보이게 하지 않기
+위함. 대신 운영자용으로 Spring Boot Actuator(`/actuator/health`의
+`mappingSync` 컴포넌트)에 공급사별 마지막 동기화 성공/실패를 노출한다.
+
 → [`docs/architecture.md`](docs/architecture.md)
 
 ### 3. Supplier 연동 어댑터
