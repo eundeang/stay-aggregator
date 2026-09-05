@@ -5,14 +5,26 @@
 
 ## 빌드 및 실행
 
+**방법 1 (권장, 한 번에)**
+
+```bash
+./dev-up.sh
+```
+
+MySQL 기동 → Mock Supplier를 백그라운드로 기동하고 응답 확인될 때까지 대기 →
+애플리케이션을 포그라운드로 기동(Ctrl+C로 종료 시 Mock도 함께 종료)까지
+한 번에 처리한다.
+
+**방법 2 (수동, 각각 별도 터미널)**
+
 ```bash
 # 1. MySQL 기동
 docker compose up -d
 
-# 2. Mock Supplier 기동 (별도 포트 9090)
+# 2. Mock Supplier 기동 (별도 터미널, 포트 9090)
 ./gradlew :mock:bootRun
 
-# 3. 애플리케이션 기동
+# 3. 애플리케이션 기동 (또 다른 별도 터미널)
 ./gradlew bootRun
 ```
 
