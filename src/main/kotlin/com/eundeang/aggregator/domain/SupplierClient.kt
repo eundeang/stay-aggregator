@@ -58,6 +58,7 @@ enum class SupplierFailureReason {
     RATE_LIMITED, // 429 / E429
     INVALID_REQUEST, // 4xx / E400 (파라미터 오류 등, 재시도 무의미)
     AUTH_FAILED, // 401 / E401
+    NO_MAPPING_DATA, // 이 공급사의 매핑이 비어있어 조회 자체를 시도하지 못함 — 공급사 응답과 무관한 우리 시스템 내부 사유
     UNKNOWN, // 위 분류에 안 맞는 경우
 }
 

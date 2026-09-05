@@ -46,6 +46,12 @@ A(HTTP 상태 코드)와 B(HTTP 200 + `resultCode`)를 각 어댑터 내부에�
 | 공급사 내부 오류 | HTTP 500 | resultCode E500 | SUPPLIER_ERROR |
 | 일시적 장애 | HTTP 503 | resultCode E503 | SUPPLIER_ERROR |
 | 무응답/응답 지연 | WebClient 타임아웃 예외 | 동일 | TIMEOUT |
+| (공급사 응답과 무관 — 우리 시스템 내부 사유) | 이 공급사의 매핑이 비어있어 조회 자체를 시도 못 함 | 동일 | NO_MAPPING_DATA |
+
+`NO_MAPPING_DATA`는 위 6가지와 달리 **어댑터가 판정하는 게 아니라
+`StaySearchService`가 판정**한다 — 공급사를 호출하기도 전에, 매핑 테이블에
+그 공급사의 숙소 코드가 하나도 없다는 걸 이미 알고 있기 때문. 근거:
+`docs/architecture.md` "매핑 없는 공급사 처리".
 
 호출부(`StaySearchService`)는 A인지 B인지 전혀 몰라도 되고, `SupplierAvailabilityResult`
 가 `Success`인지 `Failure`인지, `Failure`면 `reason`이 뭔지만 보고 판단한다.

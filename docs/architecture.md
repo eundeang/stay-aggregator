@@ -190,3 +190,36 @@ ON DUPLICATE KEY UPDATE`를 청크(기본 1000건)당 멀티로우로 묶어 실
   — §3.2④(부분 실패 허용)이 실제로 동작함을 확인.
 
 WebClient 설정은 `config/WebClientConfig.kt` 참고.
+
+## 매핑 없는 공급사 처리: 조용히 넘어가지 않고 NO_MAPPING_DATA로 명시
+
+기동 시 특정 공급사의 매핑 동기화가 실패하면(공급사 다운 등), 검색 시점에
+`hotelCodesBySupplier[client.supplier]`가 비어있다 — 물어볼 숙소 코드가
+없으니 그 공급사의 `fetchAvailability` 호출 자체가 일어나지 않는다. 처음엔
+이걸 그냥 넘어갔는데(그러면 `results`/`partialFailures` 둘 다 그 공급사에
+대해 아무 항목도 안 남음), 이러면 **"진짜로 상품이 0개인 정상 상황"과
+"동기화 실패로 매핑 자체가 없는 비정상 상황"이 API 응답에서 구분이 안
+된다.**
+
+**검토했던 대안**: 이 실패를 검색 API에서는 완전히 숨기고 Spring Boot
+Actuator 같은 별도 운영 채널로만 노출하는 방식을 먼저 시도했다 — "우리는
+공급사 상품을 대신 파는 입장이라 공급사 장애가 우리 서비스 장애처럼 보이면
+안 된다"는 논리였다. 실제로 `MappingSyncStatus` + 커스텀
+`HealthIndicator`(`/actuator/health`)까지 구현·검증했으나, 이후 재검토 후
+되돌렸다(`git revert`) — 대신 아래 방식으로 정리.
+
+**최종 결정**: `partialFailures`에 `NO_MAPPING_DATA` 사유로 명시한다.
+- 이미 있는 실패 표현 메커니즘(`partialFailures`)에 사유 하나만 추가하는
+  것이라, 별도 인프라(Actuator)나 새로운 상태 저장 없이 구현 비용이 거의
+  없다 — 검색 시점에 이미 알고 있는 정보(공급사별 코드 목록이 비어있다는
+  사실)만 활용.
+- `partialFailures`는 애초에 "이 결과가 왜 불완전한지"를 호출하는 다음
+  계층(프론트/BFF)에게 알려주는 용도로 설계된 필드다(§3.2④). 검색 도중
+  타임아웃 나는 것과 마찬가지로, "매핑이 없어서 아예 못 물어봤다"도 같은
+  "이 공급사 결과가 왜 없는지"에 대한 답이라 같은 메커니즘에 자연스럽게
+  들어맞는다 — Actuator처럼 별도 채널을 새로 만들 필요가 없었다.
+- `SupplierFailureReason`에 `NO_MAPPING_DATA`를 추가하되, 이건 공급사
+  응답을 보고 판정하는 다른 사유들과 달리 **어댑터가 아니라
+  `StaySearchService`가 판정**한다 — 공급사를 호출하기도 전에 우리 쪽
+  매핑 데이터만 보고 알 수 있기 때문. 상세: `docs/supplier-adapter.md`
+  "실패 판정 통일".

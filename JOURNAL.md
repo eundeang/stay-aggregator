@@ -255,6 +255,25 @@
   직접 부착) 유지. `CLAUDE.md`에 "신규 컨트롤러엔 Swagger 필수, 인터페이스
   분리는 안 함"을 규칙으로 추가해 앞으로도 이 판단이 자동으로 적용되게 함.
 
+- **매핑 없는 공급사 처리: 숨기는 방향 → 명시하는 방향으로 최종 정리** —
+  기동 시 공급사 매핑 동기화가 실패하면(다운 등) 검색 시점엔 그 공급사에
+  물어볼 숙소 코드가 없어 `fetchAvailability` 호출 자체가 안 일어나고,
+  `results`/`partialFailures` 둘 다 아무 항목 없이 응답이 나감 — "진짜
+  상품 0개"와 "동기화 실패로 매핑이 아예 없음"이 구분 안 되는 문제.
+  - 1차 시도: "우리는 공급사 상품을 대신 파는 입장이라 공급사 장애가 우리
+    서비스 장애처럼 보이면 안 된다"는 사용자 근거로, 검색 API 응답은 그대로
+    두고 Spring Boot Actuator 커스텀 `HealthIndicator`로 운영자에게만
+    노출하는 방식을 구현·실측 검증까지 완료(`MappingSyncStatus` +
+    `MappingSyncHealthIndicator`, liveness/readiness엔 영향 없음도 확인).
+  - 사용자가 이 방식 자체를 재검토 후 롤백 지시 → `git revert`로 커밋 2개
+    되돌림(히스토리는 남김).
+  - 재정리한 최종 결정: **검색 API의 `partialFailures`에 `NO_MAPPING_DATA`
+    사유로 그대로 노출**. 별도 상태 저장·인프라(Actuator) 없이, 검색
+    시점에 이미 아는 정보(공급사 코드 목록이 비어있음)만으로 구현. 상세
+    근거는 `docs/architecture.md` "매핑 없는 공급사 처리" 참고.
+  - `SupplierFailureReason`에 `NO_MAPPING_DATA` 추가 — 다른 사유와 달리
+    공급사 응답이 아니라 `StaySearchService`가 자체적으로 판정.
+
 ### AI 활용
 - 사용자가 전체 흐름·청크 분할·부분실패 처리·테스트 시나리오까지 상세히
   설계해서 지시 → Claude는 그대로 구현하고, 문서에 없던 세부(청크별 부분
@@ -265,8 +284,14 @@
 - 사용자가 Swagger 인터페이스 분리를 제안 → Claude가 지금 규모엔 과하다고
   반대 근거를 제시하며 반박 → 사용자가 Claude 판단을 받아들여 현재 방식
   유지로 정리. Claude가 사용자 제안을 그대로 따르지 않고 이견을 낸 사례.
+- 매핑 없는 공급사 처리는 Claude가 제안한 Actuator 방식을 사용자가 처음엔
+  받아들여 구현까지 갔다가, 다시 생각해보고 롤백을 지시 → 이후 사용자가
+  직접 "새 상태 저장 없이 기존 정보만으로" 구현하라는 훨씬 단순한 방향을
+  구체적으로(enum 케이스, 코드 스케치까지) 설계해서 지시 — Claude 제안이
+  한 번 받아들여졌다가 나중에 뒤집힌 사례.
 
 ### 참고 자료
 - `docs/domain-model.md` "Kotlin 도메인 모델", "응답 구조"
 - `docs/supplier-adapter.md` "왜 도메인 모델을 바로 안 만들고 중간 타입을 두는가"
-- `docs/architecture.md` "타임아웃 값", `docs/mock-supplier.md` "모드"
+- `docs/architecture.md` "타임아웃 값", "매핑 없는 공급사 처리",
+  `docs/supplier-adapter.md` "실패 판정 통일", `docs/mock-supplier.md` "모드"

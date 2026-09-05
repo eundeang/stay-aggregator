@@ -137,4 +137,24 @@ class StaySearchServiceTest
             assertEquals(51, clientA.calls.sumOf { it.size })
             assertTrue(clientA.calls.all { it.size <= 50 })
         }
+
+        @Test
+        fun `공급사 매핑이 비어있으면 조회 자체를 시도하지 않고 NO_MAPPING_DATA로 기록된다`() {
+            seedHotel(SupplierCode.SUPPLIER_A, "A-10023", "Riverside Hotel Seoul", "DLX-TWN", "Deluxe Twin")
+            // SUPPLIER_B는 seedHotel을 호출하지 않아 매핑이 비어있음
+            val clientA = FakeSupplierClient(SupplierCode.SUPPLIER_A) { successOffer("A-10023", "DLX-TWN") }
+            val clientB = FakeSupplierClient(SupplierCode.SUPPLIER_B) { successOffer("B77120", "R-401") }
+            val service = StaySearchService(listOf(clientA, clientB), hotelMappingRepository, roomTypeMappingRepository)
+
+            val result = runBlocking { service.search(checkIn, checkOut, 2, 0) }
+
+            assertEquals(1, result.results.size)
+            assertEquals(HotelId(SupplierCode.SUPPLIER_A, "A-10023"), result.results.single().hotelId)
+            assertEquals(1, result.partialFailures.size)
+            assertEquals(
+                PartialFailure(SupplierCode.SUPPLIER_B, SupplierFailureReason.NO_MAPPING_DATA),
+                result.partialFailures.single(),
+            )
+            assertTrue(clientB.calls.isEmpty()) { "매핑이 없는 공급사는 fetchAvailability를 호출하지 않아야 한다" }
+        }
     }

@@ -7,6 +7,7 @@ import com.eundeang.aggregator.domain.RoomTypeOffer
 import com.eundeang.aggregator.domain.Stay
 import com.eundeang.aggregator.domain.SupplierAvailabilityResult
 import com.eundeang.aggregator.domain.SupplierClient
+import com.eundeang.aggregator.domain.SupplierFailureReason
 import com.eundeang.aggregator.domain.SupplierOffer
 import com.eundeang.aggregator.domain.calculateAvailableRooms
 import com.eundeang.aggregator.mapping.HotelMappingRepository
@@ -46,20 +47,30 @@ class StaySearchService(
             roomTypeMappingRepository.findAll().associateBy { it.hotelMapping.id to it.externalRoomTypeCode }
         val hotelCodesBySupplier = hotelMappings.groupBy({ it.id.supplier }) { it.id.externalHotelCode }
 
+        // 매핑이 비어있는 공급사는 조용히 건너뛰지 않고 NO_MAPPING_DATA로 명시한다 —
+        // "실제로 상품이 0개인 정상 상황"과 "동기화 실패로 매핑 자체가 없는 비정상
+        // 상황"이 API 응답에서 구분 안 되는 문제였음 (근거: JOURNAL.md, docs/architecture.md
+        // "매핑 없는 공급사 처리").
+        val (suppliersWithMapping, suppliersWithoutMapping) =
+            supplierClients.partition { hotelCodesBySupplier[it.supplier].orEmpty().isNotEmpty() }
+        val noMappingFailures =
+            suppliersWithoutMapping.map { PartialFailure(it.supplier, SupplierFailureReason.NO_MAPPING_DATA) }
+
         val callResults =
             coroutineScope {
-                supplierClients
+                suppliersWithMapping
                     .flatMap { client ->
-                        hotelCodesBySupplier[client.supplier].orEmpty().chunked(HOTEL_CODES_CHUNK_SIZE).map { chunk ->
+                        hotelCodesBySupplier.getValue(client.supplier).chunked(HOTEL_CODES_CHUNK_SIZE).map { chunk ->
                             async { client.supplier to client.fetchAvailability(chunk, checkIn, checkOut, adults, children) }
                         }
                     }.map { it.await() }
             }
 
-        val partialFailures =
+        val callFailures =
             callResults.mapNotNull { (supplier, result) ->
                 (result as? SupplierAvailabilityResult.Failure)?.let { PartialFailure(supplier, it.reason) }
             }
+        val partialFailures = noMappingFailures + callFailures
 
         // 매핑을 순회하지 않고 응답에 실제로 있는 offer만 순회한다 — 인원 초과 등으로
         // 응답에서 아예 빠진 객실 타입을 재고 0으로 억지로 채우지 않기 위함
