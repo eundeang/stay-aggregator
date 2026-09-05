@@ -289,9 +289,25 @@
   직접 "새 상태 저장 없이 기존 정보만으로" 구현하라는 훨씬 단순한 방향을
   구체적으로(enum 케이스, 코드 스케치까지) 설계해서 지시 — Claude 제안이
   한 번 받아들여졌다가 나중에 뒤집힌 사례.
+- 사용자가 "하네스 아키텍처를 적용하면 공급사 추가가 더 안정적이겠냐"고
+  질문 → Claude가 "배선(자동 편입)은 이미 돼 있고 검증(계약 테스트)이
+  빠져있다"고 진단하며 공통 계약 테스트 하네스를 제안 → 사용자가 그대로
+  구현 지시.
+
+- **SupplierClient 공통 계약을 테스트 하네스로 분리** — `SupplierAClientTest`/
+  `SupplierBClientTest`가 구조는 거의 동일한데(실패 판정 6종, X-Api-Key
+  헤더) 공유되는 게 없어서, 신규 공급사를 추가할 때 케이스를 빠뜨려도 아무도
+  못 잡는 상태였음. `supplierClientContract(label, newClient, enqueueFailure)`
+  함수로 뽑아내 각 공급사 테스트는 "이 상황을 어떻게 표현하는지"만 채우면
+  나머지(실패 판정 5종, 타임아웃, 헤더)는 자동 검증되게 함 — DTO 파싱처럼
+  공급사마다 다른 부분만 각자 테스트에 남김.
+  - 검증: `SupplierAClient`의 401 판정을 일부러 `RATE_LIMITED`로 깨뜨려
+    실행 → 하네스가 정확히 그 케이스만 잡아내는 것을 확인 후 원복. 리팩터
+    전후로 테스트 개수(공급사당 9개, 전체 38개)와 결과가 그대로임도 확인.
 
 ### 참고 자료
 - `docs/domain-model.md` "Kotlin 도메인 모델", "응답 구조"
-- `docs/supplier-adapter.md` "왜 도메인 모델을 바로 안 만들고 중간 타입을 두는가"
+- `docs/supplier-adapter.md` "왜 도메인 모델을 바로 안 만들고 중간 타입을 두는가",
+  "신규 공급사가 제대로 만들어졌는지 검증: 공통 계약 테스트 하네스"
 - `docs/architecture.md` "타임아웃 값", "매핑 없는 공급사 처리",
-  `docs/supplier-adapter.md` "실패 판정 통일", `docs/mock-supplier.md` "모드"
+  `docs/mock-supplier.md` "모드"

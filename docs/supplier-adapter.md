@@ -78,3 +78,32 @@ A(HTTP 상태 코드)와 B(HTTP 200 + `resultCode`)를 각 어댑터 내부에�
 이게 가능한 이유는 `StaySearchService`가 특정 공급사를 이름으로 알지 못하고
 `List<SupplierClient>`(Spring이 `@Component`로 등록된 모든 구현체를 자동 주입)만
 알기 때문이다.
+
+## 신규 공급사가 "제대로" 만들어졌는지 검증: 공통 계약 테스트 하네스
+
+위 절이 "배선"(신규 구현체가 자동으로 시스템에 편입되는 것)을 다룬다면, 이
+절은 "그 구현체가 실제로 올바르게 동작하는지"를 다룬다. 배선은 잘 되지만
+구현이 틀린 경우(예: 실패 판정 하나를 빼먹거나, `CancellationException`을
+삼켜버리거나) 아무것도 자동으로 잡아주지 않는다는 게 문제였다 — 리뷰어가
+눈으로 봐야만 알 수 있었다.
+
+`src/test/kotlin/.../supplier/SupplierClientContract.kt`의
+`supplierClientContract(label, newClient, enqueueFailure)`가 이 하네스다.
+`SupplierClient` 구현체라면 누구나 지켜야 하는 계약(아래)을 정의해두고, 각
+공급사 테스트는 "이 공급사가 이 상황을 어떻게 표현하는지"(`newClient`,
+`enqueueFailure`)만 채워 넣으면 나머지는 자동으로 검증된다.
+
+**하네스가 검증하는 것** (신규 공급사 추가 시 자동으로 확인됨)
+- 실패 판정 5종(잘못된 요청/인증 실패/호출 한도 초과/내부 오류/일시적 장애)이
+  전부 올바른 `SupplierFailureReason`으로 매핑되는가
+- 무응답 시 `TIMEOUT`으로 분류되는가
+- 요청에 `X-Api-Key` 헤더를 포함하는가
+
+**하네스가 검증하지 않는 것** (공급사마다 다른, 각자의 테스트에서 검증)
+- 숙소 목록/재고·요금 응답의 필드 파싱(각 공급사 DTO 구조가 다르므로)
+- `breakfastIncluded` 위치, 요금 계산 방식(A: 합산, B: 그대로) 등 응답 구조 특이사항
+
+신규 공급사(예 Supplier C) 추가 시 `SupplierCClientTest`에서
+`supplierClientContract(...)`를 호출하기만 하면, 위 계약을 빠뜨렸는지 즉시
+테스트 실패로 드러난다 — 실제로 `SupplierAClient`의 401 판정을 일부러
+깨뜨려서 하네스가 잡아내는 것까지 확인했다(JOURNAL.md 참고).
