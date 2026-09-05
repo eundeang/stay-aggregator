@@ -28,11 +28,16 @@
     - 객실 타입도 동일 원칙(숙소 안에서만 유일)으로 동작하는가
     - Repository는 실제 DB 대신 in-memory(fake) 또는 `@DataJpaTest`로 격리 테스트
 
-### 1-3. Supplier A/B 어댑터
+### 1-3. Supplier A/B 어댑터 ✅ 완료
 - 이미 상세 설계됨: `docs/supplier-adapter.md`, `docs/supplier-api-spec.md`
 - 테스트 케이스: 이전 대화에서 정리한 실패 판정 매핑표 전체(A 6종, B 6종),
   정상 응답 파싱(`breakfastIncluded` 위치, `totalAmount` 계산, `nightlyNetAmounts`
-  null 처리), 타임아웃 → `TIMEOUT` 매핑
+  null 처리), 타임아웃 → `TIMEOUT` 매핑, `X-Api-Key` 헤더 전송 검증
+- 각 9개 테스트(A/B) 전부 통과. 남은 것: `hotelCodes`/`propertyIds` 50개 초과 시
+  청크 분할 로직 — `StaySearchService`가 실제로 `fetchAvailability`를 호출하기
+  시작할 때(Phase 2) 함께 챙길 항목
+
+**Phase 1 전체 완료** — 1-1/1-2/1-3 모두 테스트까지 끝남. 다음은 Phase 2로 진행.
 
 ## Phase 2 — 구현 후 검증 (스펙이 구현 중 확정됨)
 
