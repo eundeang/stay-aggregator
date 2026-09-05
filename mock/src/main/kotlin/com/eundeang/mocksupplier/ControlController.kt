@@ -1,5 +1,8 @@
 package com.eundeang.mocksupplier
 
+import io.swagger.v3.oas.annotations.Operation
+import io.swagger.v3.oas.annotations.Parameter
+import io.swagger.v3.oas.annotations.tags.Tag
 import org.springframework.http.HttpStatus
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
@@ -8,16 +11,20 @@ import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 import org.springframework.web.server.ResponseStatusException
 
+@Tag(name = "Mock Control", description = "공급사별 모드 전환 (정상/장애/무응답/지연) — docs/mock-supplier.md 참고")
 @RestController
 @RequestMapping("/control")
 class ControlController(private val modeStore: ModeStore) {
 
-    /** delay 모드일 때만 seconds를 함께 지정 — 예: ?value=delay&seconds=6 */
+    @Operation(
+        summary = "공급사 모드 전환",
+        description = "value=delay일 때만 seconds로 지연 시간(초, 기본 5)을 지정한다. 예: ?value=delay&seconds=6",
+    )
     @PostMapping("/{supplier}/mode")
     fun setMode(
-        @PathVariable supplier: String,
-        @RequestParam value: String,
-        @RequestParam(required = false) seconds: Long?,
+        @Parameter(description = "a 또는 b") @PathVariable supplier: String,
+        @Parameter(description = "normal | error | no-response | delay") @RequestParam value: String,
+        @Parameter(description = "delay 모드의 지연 시간(초)") @RequestParam(required = false) seconds: Long?,
     ): Map<String, String> {
         if (supplier.lowercase() !in setOf("a", "b")) {
             throw ResponseStatusException(HttpStatus.BAD_REQUEST, "unknown supplier: $supplier")

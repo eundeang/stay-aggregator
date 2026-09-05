@@ -3,6 +3,8 @@ package com.eundeang.mocksupplier.supplierb
 import com.eundeang.mocksupplier.ModeStore
 import com.eundeang.mocksupplier.MockMode
 import com.eundeang.mocksupplier.NO_RESPONSE_DELAY_MS
+import io.swagger.v3.oas.annotations.Operation
+import io.swagger.v3.oas.annotations.tags.Tag
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
@@ -13,10 +15,12 @@ import java.time.temporal.ChronoUnit
 private const val ERROR_CODE = "E503"
 private const val OK_CODE = "0000"
 
+@Tag(name = "Supplier B", description = "docs/supplier-api-spec.md의 Supplier B 재현 (HTTP는 항상 200, resultCode로 실패 표현)")
 @RestController
 @RequestMapping("/b/api")
 class SupplierBController(private val modeStore: ModeStore) {
 
+    @Operation(summary = "숙소 목록 (①)", description = "파라미터 없음. 현재 모드(/control/b/mode)와 무관하게 항상 정상 응답.")
     @GetMapping("/properties")
     fun properties(): BPropertiesResponse {
         applyDelay()
@@ -26,6 +30,7 @@ class SupplierBController(private val modeStore: ModeStore) {
         return BPropertiesResponse(OK_CODE, "SUCCESS", BPropertiesData(SupplierBData.properties))
     }
 
+    @Operation(summary = "재고·요금 (②)", description = "현재 모드(normal/error/no-response/delay)에 따라 resultCode가 달라진다.")
     @GetMapping("/search")
     fun search(
         @RequestParam propertyIds: String,

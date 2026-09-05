@@ -3,6 +3,8 @@ package com.eundeang.mocksupplier.suppliera
 import com.eundeang.mocksupplier.ModeStore
 import com.eundeang.mocksupplier.MockMode
 import com.eundeang.mocksupplier.NO_RESPONSE_DELAY_MS
+import io.swagger.v3.oas.annotations.Operation
+import io.swagger.v3.oas.annotations.tags.Tag
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.GetMapping
@@ -12,16 +14,19 @@ import org.springframework.web.bind.annotation.RestController
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
 
+@Tag(name = "Supplier A", description = "docs/supplier-api-spec.md의 Supplier A 재현")
 @RestController
 @RequestMapping("/a/v1")
 class SupplierAController(private val modeStore: ModeStore) {
 
+    @Operation(summary = "숙소 목록 (①)", description = "파라미터 없음. 현재 모드(/control/a/mode)와 무관하게 항상 정상 응답.")
     @GetMapping("/hotels")
     fun hotels(): ResponseEntity<Any> {
         errorResponse()?.let { return it }
         return ResponseEntity.ok(AHotelsResponse(SupplierAData.hotels))
     }
 
+    @Operation(summary = "재고·요금 (②)", description = "현재 모드(normal/error/no-response/delay)에 따라 응답이 달라진다.")
     @GetMapping("/availability")
     fun availability(
         @RequestParam hotelCodes: String,
