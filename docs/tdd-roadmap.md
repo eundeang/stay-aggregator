@@ -41,20 +41,21 @@
 
 ## Phase 2 — 구현 후 검증 (스펙이 구현 중 확정됨)
 
-### 2-1. StaySearchService
+### 2-1. StaySearchService ✅ 완료
 - 여러 `SupplierClient`를 어떻게 병렬 호출하고(coroutine `async`/`awaitAll` 등),
   실패한 공급사를 어떻게 `partialFailures`로 조립할지는 구현하며 결정
 - 구현 후 통합 테스트로 검증: "A 성공+B 실패 시 A 결과만 응답에 포함되고
   partialFailures에 B가 기록되는가" 등
 
-### 2-2. StaySearchController
+### 2-2. StaySearchController ✅ 완료
 - `GET /api/v1/stays/search` 요청/응답 계약 검증. `docs/domain-model.md`의
   응답 구조 예시 기준으로 통합 테스트 작성 (구현 후)
 
-### 2-3. 연동 견고성 튜닝
+### 2-3. 연동 견고성 튜닝 ✅ 완료
 - 타임아웃 판정 로직 자체는 Phase 1의 어댑터 테스트에 이미 포함됨
-- 실제 타임아웃 "값"(3초? 5초?)은 Mock의 응답 지연 모드로 실측하며 조정 —
-  이건 애초에 "테스트로 사전에 정의할 수 있는 값"이 아니라 실험적으로 정함
+- 실제 타임아웃 값은 "정상 응답 속도 실측"이 아니라 판단으로 확정
+  (connect 2초/response 4초) — Mock 응답 지연 모드로 경계값(2초 성공/6초
+  타임아웃)만 검증. 근거: `docs/architecture.md` "타임아웃 값"
 
 ## 진행 순서
 
@@ -68,6 +69,9 @@
 
 1-1과 1-2는 서로 독립적이라 순서를 바꿔도 무방하지만, 1-3(어댑터)은 1-1의
 계산 함수를 내부에서 쓰므로 그 뒤에 진행하는 게 자연스럽다.
+
+**Phase 2 전체 완료** — 2-1/2-2/2-3 모두 끝남. 핵심 검색 흐름 전체가
+구현·검증됨.
 
 ## 각 Phase 1 항목 진행 방식
 
