@@ -558,3 +558,50 @@
 ### 참고 자료
 - `docs/architecture.md` "매핑 배치 upsert: 왜 JPA 배치 대신 네이티브
   멀티로우 upsert인가"
+
+---
+
+## Day 9 - 매핑 동기화 하드닝 + legacy 컬럼/제약 제거 (Case 3)
+
+### 수행 내용
+- Case 2가 이미 end-to-end로 동작하는 상태라, Case 3는 "처음 동작하게
+  만들기"가 아니라 회귀 테스트 보강 + legacy 정리로 진행:
+  - `MappingSyncServiceTest`에 2건 추가: (1) 재동기화 시 신규 객실 타입이
+    기존 `hotel_mapping_id`에 연결되는가, (2) 청크 크기를 일부러 작게
+    (2) 잡아 "기존 3개+신규 1개, chunk=2"로 청크 경계에 기존/신규가
+    걸치는 상황을 재현해 각 숙소가 안정적인 id를 유지하는가.
+  - 이 2건 모두 Case 2 구현이 이미 올바르게 처리하고 있어 추가 구현 변경
+    없이 즉시 통과(Green) — 새 버그를 못 찾았다는 것도 하드닝의 정상적인
+    결과로 그대로 기록.
+  - 청크 크기를 테스트에서 조정할 수 있도록 `MappingSyncService`에
+    `hotelChunkSize` 생성자 파라미터(기본값 1000) 추가 — 실제 운영 동작은
+    바뀌지 않음.
+  - `V4__drop_room_type_mapping_legacy_hotel_key.sql`: `room_type_mapping`의
+    legacy `supplier`/`external_hotel_code` 컬럼과 그 위의 복합 FK/UNIQUE
+    제거. 코드베이스 전체를 grep해 이 컬럼/제약을 참조하는 곳이 없음을
+    확인한 뒤 제거.
+- 최종 스키마를 `SHOW CREATE TABLE`로 직접 확인해 `CLAUDE.md`의
+  `hotel_mapping: UNIQUE(supplier, external_hotel_code)` /
+  `room_type_mapping: UNIQUE(hotel_mapping_id, external_room_type_code)`
+  서술과 정확히 일치함을 확인 — 별도 문서 수정 불필요.
+
+### 의사결정
+
+- **하드닝 케이스에서 버그를 못 찾아도 테스트는 그대로 남긴다** — Case 3의
+  목적은 "새 기능 구현"이 아니라 "이미 만든 기능이 엣지케이스에서도
+  맞는지 확인하고 회귀 방지선을 긋는 것"이라, 테스트가 처음부터
+  통과했다고 해서 무가치한 게 아니라 오히려 Case 2 설계가 맞았다는
+  증거로 남긴다.
+- **legacy 컬럼 제거 전 코드베이스 전체를 grep으로 재확인** — Case 2에서
+  "컬럼은 남기고 NOT NULL만 해제"로 결정했던 이유(쓰기 경로 전환과 정리를
+  분리)가 유효했는지, 즉 지금 시점에 정말 아무 코드도 그 컬럼/제약명을
+  참조하지 않는지 추측 대신 직접 검색으로 확인한 뒤 삭제 마이그레이션을
+  작성.
+
+### AI 활용
+- 사용자가 Case 3의 테스트 항목을 구체적으로 지정(신규 객실 타입 연결,
+  청크 경계 안정성, legacy 제거 등) → Claude가 청크 경계 재현을 위해
+  `hotelChunkSize`를 테스트에서 주입 가능하게 만드는 방법을 판단해 추가.
+
+### 참고 자료
+- `CLAUDE.md` "DB" 섹션 (최종 스키마와 대조 확인)

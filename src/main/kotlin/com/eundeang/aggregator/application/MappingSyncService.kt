@@ -22,12 +22,13 @@ private const val HOTEL_CHUNK_SIZE = 1000
 @Service
 class MappingSyncService(
     private val mappingBatchUpsertService: MappingBatchUpsertRepository,
+    private val hotelChunkSize: Int = HOTEL_CHUNK_SIZE,
 ) {
     fun syncHotels(
         supplier: SupplierCode,
         hotels: List<SupplierHotel>,
     ) {
-        hotels.chunked(HOTEL_CHUNK_SIZE).forEach { chunk ->
+        hotels.chunked(hotelChunkSize).forEach { chunk ->
             mappingBatchUpsertService.upsertHotels(supplier, chunk)
 
             val hotelIdByExternalCode =
