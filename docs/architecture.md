@@ -251,3 +251,121 @@ CLAUDE.md/이 문서에 적힌 패키지 규칙(예: "domain은 다른 계층을
 **검증**: `SupplierARoomTypeDto`를 일부러 `internal` 없이 만들고 실행 →
 "공급사 DTO는 internal이어야 한다" 테스트가 정확히 실패하는 것 확인 후
 원복.
+
+## 대규모(5만 건) 시나리오 검토: 검색 API(③)
+
+Mock Supplier가 현재 숙소 몇 개뿐이라 아래 항목들은 **지금 데이터로는 재현되지
+않는다** — 실측이 아니라 코드를 직접 읽고 판단한 설계 검토이며, "왜 지금
+구현하지 않았는지"와 "실제로 대한민국 전체 규모(3~5만 건)로 커지면 어떻게
+할지"를 구분해서 남긴다.
+
+### 1. 매핑 캐싱 범위: 요청마다 DB 풀스캔 — 애플리케이션 레벨 캐시 없음
+
+**확인한 사실** (`StaySearchService.search()`):
+
+```kotlin
+val hotelMappings = hotelMappingRepository.findAll()
+val roomTypeMappingByKey = roomTypeMappingRepository.findAll().associateBy { ... }
+```
+
+`search()`가 호출될 때마다 `hotel_mapping`/`room_type_mapping` 테이블 전체를
+새로 조회해 메모리 맵으로 만든다. 이 맵은 **해당 요청 하나를 처리하는 동안만**
+존재하고 요청이 끝나면 버려진다 — `@Cacheable`, `CacheManager`, Caffeine 등
+여러 요청에 걸쳐 재사용되는 애플리케이션 레벨 캐시는 코드베이스 어디에도 없다
+(grep으로 확인, 0건).
+
+Day 4에서 이 `findAll()` 한 번 호출을 "매핑 조회 결과를 메모리 맵으로 캐싱 후
+조립"이라고 표현했는데, 이건 "**한 요청 안에서** 오퍼 하나마다 매핑을 다시
+조회하지 않는다"는 의미(N+1 방지)였지 "**요청 간에** 재사용한다"는 의미가
+아니었다 — 이번 검토로 그 차이를 명확히 구분해둔다.
+
+**5만 건 규모에서 왜 문제가 되는가**: 숙소 5만 건 × 객실타입 평균 3종이면
+`room_type_mapping`만 약 15만 로우다. 동시 검색 사용자가 늘어나면 이 전체
+스캔 + 맵 변환이 요청 수만큼 반복되어, 공급사가 아니라 **우리 DB 커넥션
+풀/쿼리 부하가 병목**이 될 수 있다. 검색 요청 자체는 지역/키워드 필터가 없어
+"보유 숙소 전체"가 조회 대상으로 고정돼 있으므로(위 "매핑 생성 트리거" 2번
+참고), 트래픽이 늘어도 매 요청이 조회하는 범위가 줄어들 방법이 없다는 점에서
+더 뚜렷한 병목이다.
+
+**왜 지금 구현하지 않았는가**:
+- Mock 데이터 규모(숙소 몇 개)로는 `findAll()` 비용 자체가 무의미해 실측
+  기반 판단이 불가능하다.
+- 매핑은 현재 앱 기동 시 1회(`MappingSyncRunner`)만 갱신되므로, 요청마다
+  다시 조회해도 **정확성 문제는 없다** — "느릴 수 있다"는 성능 문제이지
+  "틀린 결과가 나온다"는 정합성 문제가 아니라서, 이 규모에서 우선순위를
+  낮게 잡았다.
+
+**실제로 필요해지면**: Spring Cache 추상화 + `CaffeineCacheManager`로
+`hotelMappingRepository.findAll()`/`roomTypeMappingRepository.findAll()`
+결과를 캐싱한다. 다만 이 캐시는 **TTL보다 명시적 무효화가 더 정확한
+모델**이라는 점을 남겨둔다 — 매핑은 시간이 지나서 저절로 바뀌는 데이터가
+아니라 `MappingSyncRunner`(또는 위 "매핑 생성 트리거" 보류 항목 6의 TTL
+지연 갱신, 혹은 향후 수동 재동기화 엔드포인트)가 **갱신을 완료하는 시점에만**
+바뀐다. 그러므로:
+- 갱신이 끝나는 지점(`MappingSyncRunner` 완료 후, 또는 향후 재동기화
+  엔드포인트 완료 후)에서 `cacheManager.getCache(...).invalidate()`를
+  호출해 무효화하는 것이 1차 전략.
+- TTL은 "무효화를 깜빡했을 때의 안전망" 정도로만 보조적으로 둔다(예:
+  수 시간 단위) — TTL 값 자체를 1차 방어선으로 삼으면, 이미 위 "TTL 기반
+  지연 갱신" 항목에서 지적한 것과 같은 "근거 없는 임의값" 문제가 그대로
+  재발한다.
+
+### 2. 공급사별 병렬 호출 개수 제한: 없음 (문서화, 구현은 보류)
+
+**확인한 사실** (`StaySearchService.search()`):
+
+```kotlin
+coroutineScope {
+    suppliersWithMapping.flatMap { client ->
+        hotelCodesBySupplier.getValue(client.supplier).chunked(HOTEL_CODES_CHUNK_SIZE).map { chunk ->
+            async { client.supplier to client.fetchAvailability(chunk, checkIn, checkOut, adults, children) }
+        }
+    }.map { it.await() }
+}
+```
+
+청크(50개 숙소 코드) 단위로 `async`를 무조건 띄운다 — `Semaphore`,
+`Dispatchers.IO.limitedParallelism(N)` 등 동시 실행 개수를 제한하는 코드는
+없다(grep으로 확인, 0건). `WebClientConfig`도 connect/read 타임아웃만
+설정할 뿐(§"타임아웃 값"), 커넥션 풀 크기나 동시 요청 수 상한은 설정하지
+않는다.
+
+**5만 건 규모에서 왜 문제가 되는가**: 숙소 5만 건을 공급사당 50개씩 청크로
+나누면 공급사당 약 1,000개 청크가 생기고, 지금 코드는 이걸 전부 동시에
+발사한다. 두 가지 실패 경로가 있다:
+- 우리 쪽 자원(커넥션) 부족으로 타임아웃이 나는데, 이게 실제로는 공급사
+  문제가 아니라 우리 쪽 문제라 `SupplierFailureReason` 분류(TIMEOUT 등)가
+  원인을 오도할 수 있다.
+- 공급사 rate limit에 대량으로 걸려 `RATE_LIMITED`(429, 이미
+  `SupplierFailureReason`에 정의돼 있음)가 무더기로 발생 — 부분 실패로는
+  분류되지만, 애초에 방지 가능한 실패를 자초하는 셈이다.
+
+**왜 지금 구현하지 않았는가** (판단 후 보류 — 시간이 없어서가 아니라
+근거 부족 때문):
+- `docs/supplier-api-spec.md`에 공급사별 rate limit 수치(요청/초 등)가
+  명시돼 있지 않다. `Semaphore`/`limitedParallelism`으로 상한 N을 걸
+  자체는 코드 몇 줄이지만, **N 값을 뒷받침할 근거가 없다** — 이는 위
+  "TTL 기반 지연 갱신"을 보류시킨 것과 같은 이유("근거 없는 임의값이
+  된다")다. `WebClientConfig`가 쓰는 JDK `HttpClient`(`JdkClientHttpConnector`)도
+  명시적 최대 커넥션 수 설정을 제공하지 않아, 거기서 힌트를 얻어 N을
+  정할 수도 없다.
+- Mock Supplier로는 429/커넥션 고갈을 재현할 방법이 없어(숙소가 몇 개뿐),
+  구현하더라도 "구현은 했지만 검증은 못 함" 상태가 된다 — 이 프로젝트가
+  지금까지 지켜온 "판단에는 반드시 근거(측정 또는 명시적 논리)를 남긴다"
+  원칙에 어긋난다.
+
+**실제로 필요해지면**: 공급사가 rate limit 스펙(예: 초당 N건)을 제공하는
+시점에, 공급사별로 `Semaphore(N)`을 하나씩 두고 `async` 블록 진입 시
+`withPermit { }`로 감싸거나, 코루틴 디스패처를
+`Dispatchers.IO.limitedParallelism(N)`으로 제한한다. 완전한 토큰 버킷 등
+정교한 rate limiter는 이 규모에서 비용 대비 과하다고 판단 — 동시 실행 개수
+상한만으로 위 두 실패 경로를 충분히 완화할 수 있다.
+
+### 3. 정렬/페이징 미구현: 이미 비범위로 문서화돼 있음 (확인만)
+
+`readme.md` "비범위(Out of Scope)" 섹션에 "지역/키워드 검색 필터,
+정렬/페이징"이 이미 명시돼 있다. 5만 건 규모에서 정렬/페이징 없이 전체
+목록을 한 번에 반환하는 것 자체가 별도 병목이 될 수 있으나, 이 항목은
+스펙상 요구되지 않는 기능 자체의 문제이지 위 1/2번처럼 "구현은 됐는데
+규모가 커지면 한계가 드러나는" 종류의 문제가 아니라서 추가 설계 검토
+없이 기존 비범위 처리를 그대로 유지한다.
