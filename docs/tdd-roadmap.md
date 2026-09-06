@@ -73,6 +73,24 @@
 **Phase 2 전체 완료** — 2-1/2-2/2-3 모두 끝남. 핵심 검색 흐름 전체가
 구현·검증됨.
 
+### 2-4. hotel_mapping 내부 surrogate ID 도입 ✅ 완료
+
+- 계기: `hotel_mapping`의 실제 PK가 `(supplier, external_hotel_code)`
+  복합키뿐이라 API 응답(`Stay.hotelId`)에 공급사 원본 코드가 그대로
+  노출되던 문제. `docs/domain-model.md` 원안(`RoomTypeOffer.roomTypeId:
+  Long`)과 실제 구현이 어긋나 있던 걸 재검토 중 발견.
+- Case 1: `hotel_mapping`에 `id BIGINT AUTO_INCREMENT` surrogate PK
+  추가, `(supplier, external_hotel_code)`는 UNIQUE로 유지 (V2 마이그레이션)
+- Case 2: `room_type_mapping`을 `hotel_mapping_id` 단일 FK로 전환 —
+  스키마·엔티티·배치 upsert 쓰기 경로를 하나의 end-to-end 커밋으로 진행
+  (V3 마이그레이션, expand 단계)
+- Case 3: 재동기화 안정성(hotel/room type id 유지) 회귀 테스트 보강 +
+  legacy `supplier`/`external_hotel_code` 컬럼·제약 제거 (V4 마이그레이션,
+  contract 단계)
+- Case 4: `Stay.hotelId`를 `Long`으로 전환 + 실제 API JSON 직렬화 검증
+  테스트 추가
+- 4 케이스 4커밋. 상세: JOURNAL.md Day 7~10
+
 ## 각 Phase 1 항목 진행 방식
 
 `.claude/skills/tdd-workflow/SKILL.md`의 Red-Green-Refactor 사이클을 따른다.

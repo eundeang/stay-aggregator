@@ -79,12 +79,12 @@ Supplier A·B의 표현 차이를 흡수하는 표준 모델. 각 판단의 근�
 {
   "results": [
     {
-      "hotelId": "...",
+      "hotelId": 1,
       "hotelName": "...",
       "sourceSupplier": "SUPPLIER_A",
       "roomTypes": [
         {
-          "roomTypeId": "...",
+          "roomTypeId": 3,
           "roomTypeName": "...",
           "maxOccupancy": 2,
           "breakfastIncluded": false,
@@ -121,7 +121,7 @@ Supplier A·B의 표현 차이를 흡수하는 표준 모델. 각 판단의 근�
 
 ```kotlin
 data class Stay(
-    val hotelId: HotelMapping.Id,
+    val hotelId: Long,              // HotelMapping.id — 공급사 원본 코드는 노출 안 함
     val hotelName: String,
     val sourceSupplier: SupplierCode,
     val roomTypes: List<RoomTypeOffer>,

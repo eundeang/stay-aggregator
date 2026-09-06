@@ -605,3 +605,66 @@
 
 ### 참고 자료
 - `CLAUDE.md` "DB" 섹션 (최종 스키마와 대조 확인)
+
+---
+
+## Day 10 - 검색 API 응답을 내부 Long ID로 전환 (Case 4, 최종)
+
+### 수행 내용
+- `Stay.hotelId` 타입을 `HotelId`(공급사 원본 코드 조합)에서 `Long`
+  (`HotelMapping.id`)으로 변경. 공급사 호출용 grouping(`offersByHotel:
+  Map<HotelId, ...>`)은 그대로 유지 — "외부 호출 계층(공급사 원본 코드) →
+  매핑 경계 → 도메인/고객 API(내부 ID)"라는 계층 역할을 코드 구조로 명확히
+  구분.
+- `StaySearchServiceTest`의 `hotelId` assertion들을 `HotelId(...)` 값
+  비교에서 실제 `HotelMapping.id`(Long) 비교로 갱신 (`seedHotel` 헬퍼가
+  이제 `HotelMapping`을 반환하도록 변경).
+- **신규**: `StaySearchResponseSerializationTest` 추가 — 서비스/도메인
+  계층 테스트만으로는 "도메인 타입은 Long인데 실제 JSON 직렬화는 여전히
+  객체로 나가는" 문제를 못 잡는다는 지적에 따라, 컨트롤러가 실제로 만드는
+  JSON을 Jackson으로 직접 파싱해 `hotelId`/`roomTypeId`가 숫자인지, 공급사
+  원본 코드(`"A-10023"`, `externalHotelCode`)가 응답 문자열에 전혀 없는지를
+  검증. `@WebMvcTest`+Mockito(suspend 함수 스터빙 문제) 대신, 기존 테스트
+  스타일(@DataJpaTest + 실제 리포지토리 + FakeSupplierClient)로 컨트롤러를
+  직접 생성해 호출한 뒤 Jackson 3(`tools.jackson`, Spring Boot 4.1.1
+  기본값)로 직렬화하는 방식을 선택 — 이 프로젝트 테스트 전반이 이미
+  이 패턴이라 새 테스트 인프라(MockMvc, Mockito) 도입 비용을 피함.
+- Red 확인: 이 테스트를 Case 4 구현 전에 먼저 실행해 `hotelId`가 숫자가
+  아니라는 이유로 실패하는 것을 확인 → `Stay`/`StaySearchService` 수정
+  후 재실행해 통과 확인.
+- `docs/domain-model.md`의 JSON 예시(`"hotelId": "..."` → `1`,
+  `"roomTypeId": "..."` → `3`)와 Kotlin 도메인 모델 초안(`HotelMapping.Id`
+  → `Long`)을 실제 구현과 일치시킴.
+- `README.md` "설계 의사결정 요약 > 1. 숙박 상품 통합 모델"에 "API 응답의
+  hotelId/roomTypeId는 공급사 원본 코드가 아니라 발급된 내부 PK" 한
+  문장 반영 — 표준 모델의 핵심 필드 판단이 바뀐 경우라 `decision-logging`
+  스킬의 README 갱신 기준에 해당.
+- `docs/tdd-roadmap.md`에 이번 4-Case 작업을 새 항목(2-4)으로 추가하고
+  완료 표시.
+
+### 의사결정
+
+- **API 테스트(실제 JSON 직렬화 확인)를 서비스 레벨 테스트와 별도로
+  둠** — Case 4 착수 전 사용자가 "도메인 모델에서는 hotelId가 Long이어도
+  실제 컨트롤러 JSON은 여전히 예전 방식일 수 있다"를 구체적으로 지적.
+  기존 테스트 스위트가 전부 서비스/리포지토리 레벨이라 이 간극을 잡을
+  수 없었던 걸 확인하고, 컨트롤러가 만드는 실제 JSON 문자열까지 검증하는
+  테스트를 신규 계층에 추가 — 이 프로젝트에 없던 첫 "API 계약" 테스트.
+- **MockMvc/Mockito 대신 기존 DataJpaTest 패턴 재사용** — suspend 컨트롤러
+  메서드를 Mockito로 스텁하려면 별도 처리(runBlocking 안에서 스텁, 또는
+  mockito-kotlin 추가)가 필요해 복잡도가 늘어남. 이미 프로젝트 전체가
+  `@DataJpaTest` + 실제 리포지토리 + Fake 어댑터로 통합 테스트를 짜는
+  스타일이라, 새 인프라를 추가하는 대신 그 스타일을 컨트롤러까지 그대로
+  확장.
+
+### AI 활용
+- 사용자가 4개 케이스의 성공 기준 4가지(API에 공급사 코드 미노출, 재동기화
+  시 hotelId/roomTypeId 안정성, 스키마·도메인·JSON·문서 전체 일치)를
+  직접 제시 → Claude가 각 케이스 구현 후 이 기준으로 스스로 점검.
+- Case 4의 API 테스트 방식(WebMvcTest+Mockito vs 기존 패턴 재사용)은
+  Claude가 실제 컴파일 문제(suspend 함수 스터빙)를 검토한 뒤 판단해
+  선택 — 사용자 확인 전에 결정.
+
+### 참고 자료
+- `docs/domain-model.md` "응답 구조", "Kotlin 도메인 모델 (초안)"
+- `README.md` "설계 의사결정 요약 > 1. 숙박 상품 통합 모델"

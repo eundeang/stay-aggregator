@@ -1,7 +1,6 @@
 package com.eundeang.aggregator.application
 
 import com.eundeang.aggregator.domain.DailyInventory
-import com.eundeang.aggregator.domain.HotelId
 import com.eundeang.aggregator.domain.SupplierAvailabilityResult
 import com.eundeang.aggregator.domain.SupplierCode
 import com.eundeang.aggregator.domain.SupplierFailureReason
@@ -42,11 +41,10 @@ class StaySearchServiceTest
             externalRoomTypeCode: String,
             roomTypeName: String,
             maxOccupancy: Int = 2,
-        ): RoomTypeMapping {
+        ): HotelMapping {
             val hotelMapping = hotelMappingRepository.save(HotelMapping(supplier, externalHotelCode, hotelName))
-            return roomTypeMappingRepository.save(
-                RoomTypeMapping(hotelMapping, externalRoomTypeCode, roomTypeName, maxOccupancy),
-            )
+            roomTypeMappingRepository.save(RoomTypeMapping(hotelMapping, externalRoomTypeCode, roomTypeName, maxOccupancy))
+            return hotelMapping
         }
 
         private fun successOffer(
@@ -68,8 +66,8 @@ class StaySearchServiceTest
 
         @Test
         fun `모든 공급사가 정상이면 각 숙소가 결과에 포함되고 partialFailures는 비어있다`() {
-            seedHotel(SupplierCode.SUPPLIER_A, "A-10023", "Riverside Hotel Seoul", "DLX-TWN", "Deluxe Twin")
-            seedHotel(SupplierCode.SUPPLIER_B, "B77120", "Riverside Hotel Seoul", "R-401", "Deluxe Twin Room")
+            val hotelA = seedHotel(SupplierCode.SUPPLIER_A, "A-10023", "Riverside Hotel Seoul", "DLX-TWN", "Deluxe Twin")
+            val hotelB = seedHotel(SupplierCode.SUPPLIER_B, "B77120", "Riverside Hotel Seoul", "R-401", "Deluxe Twin Room")
             val clientA = FakeSupplierClient(SupplierCode.SUPPLIER_A) { successOffer("A-10023", "DLX-TWN") }
             val clientB = FakeSupplierClient(SupplierCode.SUPPLIER_B) { successOffer("B77120", "R-401") }
             val service = StaySearchService(listOf(clientA, clientB), hotelMappingRepository, roomTypeMappingRepository)
@@ -78,13 +76,13 @@ class StaySearchServiceTest
 
             assertEquals(2, result.results.size)
             assertTrue(result.partialFailures.isEmpty())
-            assertTrue(result.results.any { it.hotelId == HotelId(SupplierCode.SUPPLIER_A, "A-10023") })
-            assertTrue(result.results.any { it.hotelId == HotelId(SupplierCode.SUPPLIER_B, "B77120") })
+            assertTrue(result.results.any { it.hotelId == hotelA.id })
+            assertTrue(result.results.any { it.hotelId == hotelB.id })
         }
 
         @Test
         fun `한 공급사가 실패하면 나머지 결과만 포함되고 partialFailures에 기록된다`() {
-            seedHotel(SupplierCode.SUPPLIER_A, "A-10023", "Riverside Hotel Seoul", "DLX-TWN", "Deluxe Twin")
+            val hotelA = seedHotel(SupplierCode.SUPPLIER_A, "A-10023", "Riverside Hotel Seoul", "DLX-TWN", "Deluxe Twin")
             seedHotel(SupplierCode.SUPPLIER_B, "B77120", "Riverside Hotel Seoul", "R-401", "Deluxe Twin Room")
             val clientA = FakeSupplierClient(SupplierCode.SUPPLIER_A) { successOffer("A-10023", "DLX-TWN") }
             val clientB =
@@ -96,7 +94,7 @@ class StaySearchServiceTest
             val result = runBlocking { service.search(checkIn, checkOut, 2, 0) }
 
             assertEquals(1, result.results.size)
-            assertEquals(HotelId(SupplierCode.SUPPLIER_A, "A-10023"), result.results.single().hotelId)
+            assertEquals(hotelA.id, result.results.single().hotelId)
             assertEquals(1, result.partialFailures.size)
             assertEquals(PartialFailure(SupplierCode.SUPPLIER_B, SupplierFailureReason.TIMEOUT), result.partialFailures.single())
         }
@@ -140,7 +138,7 @@ class StaySearchServiceTest
 
         @Test
         fun `공급사 매핑이 비어있으면 조회 자체를 시도하지 않고 NO_MAPPING_DATA로 기록된다`() {
-            seedHotel(SupplierCode.SUPPLIER_A, "A-10023", "Riverside Hotel Seoul", "DLX-TWN", "Deluxe Twin")
+            val hotelA = seedHotel(SupplierCode.SUPPLIER_A, "A-10023", "Riverside Hotel Seoul", "DLX-TWN", "Deluxe Twin")
             // SUPPLIER_B는 seedHotel을 호출하지 않아 매핑이 비어있음
             val clientA = FakeSupplierClient(SupplierCode.SUPPLIER_A) { successOffer("A-10023", "DLX-TWN") }
             val clientB = FakeSupplierClient(SupplierCode.SUPPLIER_B) { successOffer("B77120", "R-401") }
@@ -149,7 +147,7 @@ class StaySearchServiceTest
             val result = runBlocking { service.search(checkIn, checkOut, 2, 0) }
 
             assertEquals(1, result.results.size)
-            assertEquals(HotelId(SupplierCode.SUPPLIER_A, "A-10023"), result.results.single().hotelId)
+            assertEquals(hotelA.id, result.results.single().hotelId)
             assertEquals(1, result.partialFailures.size)
             assertEquals(
                 PartialFailure(SupplierCode.SUPPLIER_B, SupplierFailureReason.NO_MAPPING_DATA),

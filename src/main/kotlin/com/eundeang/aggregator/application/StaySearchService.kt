@@ -107,7 +107,7 @@ class StaySearchService(
                         )
                     }
                 Stay(
-                    hotelId = hotelId,
+                    hotelId = hotelMapping.id,
                     hotelName = hotelMapping.hotelName,
                     sourceSupplier = hotelId.supplier,
                     roomTypes = roomTypes,
