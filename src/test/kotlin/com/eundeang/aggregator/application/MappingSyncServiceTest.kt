@@ -30,7 +30,8 @@ class MappingSyncServiceTest
         private val entityManager: EntityManager,
         dataSource: DataSource,
     ) {
-        private val mappingBatchUpsertService = MappingBatchUpsertRepository(JdbcTemplate(dataSource))
+        private val jdbcTemplate = JdbcTemplate(dataSource)
+        private val mappingBatchUpsertService = MappingBatchUpsertRepository(jdbcTemplate)
         private lateinit var service: MappingSyncService
 
         @BeforeEach
@@ -64,6 +65,34 @@ class MappingSyncServiceTest
             assertEquals("DLX-TWN", roomTypes[0].externalRoomTypeCode)
             assertEquals("Deluxe Twin", roomTypes[0].roomTypeName)
             assertEquals(2, roomTypes[0].maxOccupancy)
+        }
+
+        @Test
+        fun `동기화 시 room_type_mapping의 hotel_mapping_id가 raw SQL 쓰기 경로에서도 실제 hotel_mapping id와 일치한다`() {
+            // MappingBatchUpsertRepository는 JPA가 아니라 JdbcTemplate로 직접 INSERT하므로,
+            // hotel_mapping_id를 채우는 책임이 JPA 관계 매핑이 아니라 이 raw SQL 자체에 있다 —
+            // 근거: docs/architecture.md "매핑 배치 upsert".
+            service.syncHotels(
+                SupplierCode.SUPPLIER_A,
+                listOf(
+                    SupplierHotel(
+                        externalHotelCode = "A-10023",
+                        hotelName = "Riverside Hotel Seoul",
+                        roomTypes = listOf(SupplierRoomType("DLX-TWN", "Deluxe Twin", 2)),
+                    ),
+                ),
+            )
+
+            val hotelMapping =
+                hotelMappingRepository.findBySupplierAndExternalHotelCode(SupplierCode.SUPPLIER_A, "A-10023")!!
+            val rawHotelMappingId =
+                jdbcTemplate.queryForObject(
+                    "SELECT hotel_mapping_id FROM room_type_mapping WHERE external_room_type_code = ?",
+                    Long::class.java,
+                    "DLX-TWN",
+                )
+
+            assertEquals(hotelMapping.id, rawHotelMappingId)
         }
 
         @Test

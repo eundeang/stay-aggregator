@@ -125,12 +125,34 @@
 왕복이 발생한다. 트리거를 동기/비동기 무엇으로 바꾸든 이 왕복 횟수 자체는
 줄지 않으므로, 트리거 설계와 별개로 upsert 자체를 재설계해야 했다.
 
-**최종 결정**: `MappingBatchUpsertService`가 `JdbcTemplate`으로 `INSERT ...
+**최종 결정**: `MappingBatchUpsertRepository`가 `JdbcTemplate`으로 `INSERT ...
 ON DUPLICATE KEY UPDATE`를 청크(기본 1000건)당 멀티로우로 묶어 실행. 신규/기존
 판정을 위한 사전 SELECT 자체를 없애고, 이미 걸려 있는 유니크 제약
-(`hotel_mapping` PK `(supplier, external_hotel_code)`, `room_type_mapping`의
-`(supplier, external_hotel_code, external_room_type_code)` UNIQUE)에 판정을
-위임한다.
+(`hotel_mapping`의 `(supplier, external_hotel_code)` UNIQUE, `room_type_mapping`의
+`(hotel_mapping_id, external_room_type_code)` UNIQUE)에 판정을 위임한다.
+
+**surrogate FK 도입 후 추가된 청크당 SELECT 1회**: `hotel_mapping.id`(내부
+숙소 ID, surrogate PK)를 도입하면서 `room_type_mapping.hotel_mapping_id`도
+이 값을 참조해야 했다. `hotel_mapping.id`는 AUTO_INCREMENT라 upsert 실행
+전에는 알 수 없고, 신규/기존 숙소 모두(신규는 방금 채번된 값, 기존은 이미
+있던 값) 그 값을 알아야 room type을 upsert할 수 있다. 검토한 대안과 선택:
+- **레코드마다 SELECT** — 왕복 횟수가 다시 "레코드 수"로 돌아가 이번
+  재설계의 목적 자체를 무효화하므로 기각.
+- **INSERT ... SELECT ... JOIN 한 문장으로 해결** — 멀티로우 VALUES 목록에
+  숙소 조인을 끼워 넣는 SQL이 되어 가독성이 크게 떨어지고, 청크 크기가
+  커질수록 SQL 자체의 복잡도(UNION ALL 서브쿼리 등)가 부담스러워짐.
+- **(채택) 청크당 bulk SELECT 1회** — `MappingSyncService`가 청크 하나를
+  "숙소 upsert → 그 청크의 `(supplier, externalHotelCode)` → `id`를 `IN`
+  절 SELECT 1회로 조회 → 그 id로 room type upsert" 순서로 처리. 왕복 횟수는
+  청크당 1회 늘 뿐이라(5만 건 기준 약 50회 → 약 100회) 기존 재설계의 이득
+  (약 35만 회 대비)을 거의 그대로 유지하면서 SQL은 단순하게 유지된다.
+
+**legacy 컬럼은 즉시 삭제하지 않음**: `room_type_mapping.supplier`/
+`external_hotel_code`는 `hotel_mapping_id` 도입 직후에는 아직 아무 코드도
+쓰지 않는 컬럼이 되지만, 곧바로 삭제하지 않고 NOT NULL만 해제해 남겨뒀다.
+스키마 변경(FK 전환)과 legacy 정리를 한 커밋에 몰아넣기보다 "확장(expand) →
+전환 → 정리(contract)" 세 단계로 나눠, 각 커밋이 그 자체로 테스트 통과
+상태를 유지하도록 하기 위함. 근거: JOURNAL.md 관련 Day.
 
 **왜 JPA 배치(`saveAll` + `hibernate.jdbc.batch_size`)가 아닌가**
 - 기존 데이터를 `IN` 쿼리로 조회해 신규/기존을 메모리에서 나누는 단계 자체가

@@ -7,7 +7,6 @@ import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
 import jakarta.persistence.JoinColumn
-import jakarta.persistence.JoinColumns
 import jakarta.persistence.ManyToOne
 import jakarta.persistence.Table
 
@@ -15,10 +14,7 @@ import jakarta.persistence.Table
 @Table(name = "room_type_mapping")
 class RoomTypeMapping(
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumns(
-        JoinColumn(name = "supplier", referencedColumnName = "supplier"),
-        JoinColumn(name = "external_hotel_code", referencedColumnName = "external_hotel_code"),
-    )
+    @JoinColumn(name = "hotel_mapping_id", nullable = false)
     val hotelMapping: HotelMapping,
     @Column(name = "external_room_type_code", nullable = false, length = 100)
     val externalRoomTypeCode: String,

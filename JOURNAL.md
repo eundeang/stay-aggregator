@@ -495,3 +495,66 @@
 ### 참고 자료
 - `docs/architecture.md` "매핑 테이블: 왜 이 스키마인가"
 - `docs/domain-model.md` "Kotlin 도메인 모델 (초안)"
+
+---
+
+## Day 8 - room_type_mapping을 hotel_mapping_id FK로 전환 (Case 2)
+
+### 수행 내용
+- 원래 계획은 Case 2(스키마/엔티티만)와 Case 3(배치 upsert 쓰기 경로)을
+  분리하는 것이었으나, 설계를 시작하기 전 검토 중 두 케이스가 실제로는
+  독립적이지 않다는 걸 발견 — `RoomTypeMapping.hotelMapping`의 `@ManyToOne`을
+  `hotel_mapping_id` 단일 FK로 바꾸면, 실제 쓰기 경로인
+  `MappingBatchUpsertRepository`의 raw SQL(JPA 아님)이 여전히 옛 복합키만
+  쓰고 있어 새로 생성되는 행의 `hotel_mapping_id`가 비게 되고, 그러면 기존
+  통합 테스트(`MappingSyncServiceTest`, `MappingSyncRunnerTest`)가 깨짐.
+  즉 원래 경계대로 가면 "Case 2 커밋 = 빌드는 되지만 동기화 기능이 깨진
+  상태"가 되어, "각 커밋이 테스트 통과 상태를 유지해야 한다"는 원칙과
+  충돌. 사용자에게 발견 사실을 보고하고 범위 재조정을 확인받음.
+- **재조정된 범위**: Case 2를 "RoomType 외부 식별자 → 내부 Hotel FK 완결된
+  end-to-end 전환"으로 확대. 스키마(V3 마이그레이션) + 엔티티 + 배치 upsert
+  쓰기 경로(`MappingBatchUpsertRepository`/`MappingSyncService`)를 한
+  커밋으로 묶음. Case 3는 "1차 구현"이 아니라 하드닝(재동기화 시 ID 안정성
+  회귀 테스트, 청크 경계 테스트, legacy 컬럼/제약 제거)으로 역할 재정의.
+- TDD: `RoomTypeMappingRepositoryTest`(신규) + `MappingSyncServiceTest`에
+  회귀 테스트 1건 추가 → Red 확인(`hotel_mapping_id` 컬럼이 없어
+  `SQLSyntaxErrorException`) → V3 마이그레이션 + 엔티티 + 배치 upsert
+  재작성(Green) → 1차 Green 시도에서 `room_type_mapping.supplier`가 여전히
+  NOT NULL인데 아무도 안 채워서 전체 테스트 14건 실패(시행착오, 아래
+  기록) → legacy 컬럼 NOT NULL 해제로 해결 → 전체 10개 테스트 클래스(41건)
+  통과 확인 → 커밋.
+
+### 의사결정
+
+- **Case 2/3 경계를 "스키마 vs 쓰기 경로"에서 "end-to-end 전환 vs 하드닝"으로
+  재정의** — 처음에는 케이스를 작게 쪼개는 게 안전하다고 생각했으나, 기존
+  동기화 경로가 JPA가 아니라 raw SQL이라는 사실 때문에 "작게 쪼개면 오히려
+  중간 상태가 깨진다"는 역설이 발생. 하나의 테스트를 Green으로 만드는 데
+  필수적인 production 경로는 같은 케이스에 묶어야 한다는 원칙으로 재정리.
+- **매핑 upsert 청크 조립 책임을 `MappingBatchUpsertRepository`에서
+  `MappingSyncService`로 이동** — `hotel_mapping_id`를 채우려면 "숙소 upsert
+  → 그 청크의 id를 bulk SELECT로 조회 → room type upsert"가 같은 청크
+  경계 안에서 순서대로 일어나야 하는데, 이전처럼 두 upsert 메서드가 각자
+  내부에서 독립적으로 청크를 나누면 이 순서를 보장할 수 없다. 대안(레코드당
+  SELECT, INSERT-SELECT-JOIN 한 문장)과 비교한 근거는
+  `docs/architecture.md` "매핑 배치 upsert" 참고.
+- **`room_type_mapping`의 legacy `supplier`/`external_hotel_code` 컬럼은
+  삭제 대신 NOT NULL만 해제** — 스키마 전환과 legacy 정리를 한 커밋에
+  묶으면 diff가 커지고 "무엇이 새 기능이고 무엇이 정리인지" 구분이
+  어려워진다. 확장(컬럼 추가) → 전환(쓰기 경로 변경) → 정리(legacy 삭제,
+  Case 3)로 나눠 각 단계를 독립적으로 검증 가능하게 함.
+
+### AI 활용
+- 사용자가 Case 2 초기 설계(스키마/엔티티만)를 먼저 구체적으로 제시했고,
+  Claude가 실제 코드(raw SQL 쓰기 경로)를 확인하는 과정에서 그 경계가
+  기존 테스트를 깨뜨린다는 걸 발견해 실행 전에 보고 → 사용자가 "억지로
+  쪼개기보다 동작 가능한 vertical slice로 재정의하자"고 판단해 범위를
+  직접 재설계(청크 조립 책임 이동, legacy 컬럼 단계적 삭제 등)해 지시.
+- Green 1차 시도가 예상 밖의 이유(legacy NOT NULL 컬럼)로 실패한 것을
+  숨기지 않고 원인 분석 후 마이그레이션을 수정 — 이미 로컬 dev DB에
+  적용된 마이그레이션 파일을 수정해야 해서 dev DB를 초기화(disposable
+  Docker Compose 볼륨이라 안전).
+
+### 참고 자료
+- `docs/architecture.md` "매핑 배치 upsert: 왜 JPA 배치 대신 네이티브
+  멀티로우 upsert인가"
