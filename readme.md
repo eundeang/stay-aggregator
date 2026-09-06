@@ -5,6 +5,8 @@
 
 ## 빌드 및 실행
 
+**사전 요구사항**: JDK 21, Docker(Docker Compose 포함)
+
 **방법 1 (권장, 한 번에)**
 
 ```bash
@@ -38,9 +40,31 @@ docker compose up -d
 Kotlin · Spring Boot 3.4+ · Gradle(Kotlin DSL) · MySQL · Spring WebClient
 (Supplier 연동 전용) · Flyway (스키마 마이그레이션)
 
+## API
+
+### 숙박 상품 검색
+
+```
+GET /api/v1/stays/search?checkIn=2026-09-01&checkOut=2026-09-04&adults=2&children=0
+```
+
+```bash
+curl "http://localhost:8080/api/v1/stays/search?checkIn=2026-09-01&checkOut=2026-09-04&adults=2&children=0"
+```
+
+보유한 전체 숙소를 대상으로 Supplier A/B를 병렬 조회해 표준 모델로 통합한
+결과를 반환한다. 지역/키워드 필터·정렬·페이징은 비범위(아래 "비범위" 참고).
+일부 공급사가 실패해도 나머지 결과는 그대로 반환되며, 실패 사유는 응답의
+`partialFailures`에 공급사별로 기록된다(`TIMEOUT`/`RATE_LIMITED`/
+`NO_MAPPING_DATA` 등 — 전체 목록: `docs/supplier-adapter.md`).
+
+Swagger UI: 앱 기동 후 `http://localhost:8080/swagger-ui.html`
+
 ## 설계 의사결정 요약
 
-상세 근거는 `docs/` 아래 각 문서 참고. 여기서는 핵심만 요약한다.
+상세 근거는 `docs/` 아래 각 문서 참고. 여기서는 핵심만 요약한다. 안내 문서가
+"판단해서 근거를 남겨라"라고 요구한 개별 항목의 진행 상태는
+[`docs/judgment-checklist.md`](docs/judgment-checklist.md)에서 추적한다.
 
 ### 1. 숙박 상품 통합 모델
 
@@ -69,7 +93,11 @@ Supplier A(일자별 단가, 세금 별도)와 B(숙박 전체 총액, 세금 �
 
 요금·재고는 원본이 외부에 있어 저장하지 않고, 공급사 코드 ↔ 내부 식별자
 매핑만 DB에 저장한다. 숙소 목록은 자주 안 바뀌고 재고·요금은 매번 바뀌는
-성격 차이를 반영한 설계.
+성격 차이를 반영한 설계. 매핑 동기화는 **앱 기동 시 1회(블로킹)**만
+수행한다 — 검색 요청 시점 트리거, TTL 지연 갱신, 외부 배치/크론 등 7개
+대안을 비교한 뒤 이 규모(7일 과제)엔 가장 단순한 방식으로 결정. 전국
+숙박업 규모(3~5만 건)를 가정한 배치 upsert 최적화(멀티로우 `INSERT ...
+ON DUPLICATE KEY UPDATE`)도 반영돼 있다.
 
 → [`docs/architecture.md`](docs/architecture.md)
 
@@ -101,14 +129,24 @@ WebClient로 각 공급사를 호출하고 도메인 모델로 변환하는 계�
 | 매핑에는 있지만 재고·요금 응답에 없는 객실 타입의 처리 | 이유(인원 초과 필터링인지, 다른 사유인지)를 스펙으로는 구분할 수 없음 — 이유를 추측하지 않고 "공급사 응답에 실제로 있는 것만 결과에 포함"이라는 단순 원칙으로 통일. 재고 `0`으로 채워 넣지 않고 결과에서 제외 |
 | 공급사 API 타임아웃 값(connect 2초/response 4초) | 공급사 응답 시간에 대한 SLA가 스펙에 없음 — 일반적인 웹 서비스의 체감 대기 한계(수 초 이내)와 "연결 실패는 응답 지연보다 더 빨리 포기해도 된다"는 원칙으로 값을 판단(실측 아님). 상세: [`docs/architecture.md`](docs/architecture.md) "타임아웃 값" |
 
-→ 각 항목의 상세 근거는 관련 `docs/*.md`에도 반영 (해당 문서 링크는 항목별로
-추가 예정)
+→ 별도 설계 근거가 필요한 항목은 관련 `docs/*.md`에도 상세를 반영한다
+(위 표의 두 번째 항목 참고). 스펙 문서 자체가 이 표를 참조하는 경우도
+있다(`docs/supplier-api-spec.md` 참고).
 
 ## 테스트
 
 도메인 계산 로직과 어댑터의 DTO 파싱·실패 판정처럼 스펙이 확정된 부분은
 TDD(Kotest FunSpec)로 작성했다. 오케스트레이션처럼 구현하며 세부가 정해지는
 부분은 구현 후 통합 테스트로 검증했다.
+
+- **공급사 어댑터 공통 계약 테스트**: 신규 공급사를 추가할 때 실패 판정
+  6종·인증 헤더 등 기본 계약을 빠뜨려도 아무도 못 잡는 문제를 막기 위해,
+  `supplierClientContract` 테스트 하네스로 공유해 공급사마다 다른 DTO 파싱만
+  각자 작성하면 되게 함.
+- **Konsist 아키텍처 테스트**: "domain은 다른 계층을 모른다", "공급사 DTO는
+  `internal`" 같은 구조 규칙이 시간이 지나며 조용히 깨지는 걸 막기 위해
+  `ArchitectureTest.kt`가 계층 의존 방향·DTO 가시성 등을 커밋마다 정적으로
+  검증한다.
 
 → 진행 로드맵: [`docs/tdd-roadmap.md`](docs/tdd-roadmap.md)
 
