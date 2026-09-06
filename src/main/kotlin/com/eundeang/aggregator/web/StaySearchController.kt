@@ -5,10 +5,12 @@ import com.eundeang.aggregator.application.StaySearchService
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.Parameter
 import io.swagger.v3.oas.annotations.tags.Tag
+import org.springframework.http.HttpStatus
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
+import org.springframework.web.server.ResponseStatusException
 import java.time.LocalDate
 
 @Tag(name = "Stay Search", description = "숙박 상품 통합 검색")
@@ -29,5 +31,16 @@ class StaySearchController(
         @Parameter(description = "체크아웃 날짜 (숙박일에 미포함)", example = "2026-09-04") @RequestParam checkOut: LocalDate,
         @Parameter(description = "성인 수", example = "2") @RequestParam adults: Int,
         @Parameter(description = "아동 수", example = "0") @RequestParam children: Int,
-    ): StaySearchResult = staySearchService.search(checkIn, checkOut, adults, children)
+    ): StaySearchResult {
+        if (!checkOut.isAfter(checkIn)) {
+            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "checkOut은 checkIn 이후 날짜여야 합니다")
+        }
+        if (adults < 1) {
+            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "adults는 1 이상이어야 합니다")
+        }
+        if (children < 0) {
+            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "children은 0 이상이어야 합니다")
+        }
+        return staySearchService.search(checkIn, checkOut, adults, children)
+    }
 }

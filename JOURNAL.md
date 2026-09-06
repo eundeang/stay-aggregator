@@ -668,3 +668,64 @@
 ### 참고 자료
 - `docs/domain-model.md` "응답 구조", "Kotlin 도메인 모델 (초안)"
 - `README.md` "설계 의사결정 요약 > 1. 숙박 상품 통합 모델"
+
+---
+
+## Day 11 - nightlyNetAmount 예시 수정 + bounded concurrency 확인 + 요청 파라미터 검증
+
+### 수행 내용
+- `docs/domain-model.md` JSON 예시의 `nightlyNetAmount` 세 값 합이
+  `totalAmount`와 정확히 같아(132000+165000+132000=429000) 세금이 0인
+  것처럼 보이던 문제를 수정 — net(세전) 합이 gross(세후)보다 작도록
+  값 변경(120000+150000+120000=390000, totalAmount 429000은 유지).
+- "수천~수만 숙소 검색 시 bounded concurrency 전략 문서화" 요청을 받고
+  `docs/architecture.md`를 확인한 결과, **이미 존재함을 확인** — "대규모
+  (5만 건) 시나리오 검토" 섹션의 "2. 공급사별 병렬 호출 개수 제한: 없음"
+  항목(Day 5)이 `Semaphore(N)`/`Dispatchers.IO.limitedParallelism(N)`
+  전략과 그걸 지금 구현하지 않은 이유(rate limit 스펙 부재로 N값 근거
+  없음)까지 이미 상세히 담고 있었다. 중복 작성 대신 기존 문서를 그대로
+  가리키는 쪽으로 판단 — 새로 쓰지 않은 것도 판단이라 기록.
+- 검색 API 요청 파라미터 검증 추가: `checkOut`이 `checkIn` 이후가 아니면,
+  `adults`가 1 미만이면, `children`이 음수면 각각 400(`ResponseStatusException`)을
+  던지도록 `StaySearchController`에 반영. TDD로 진행:
+  `StaySearchControllerValidationTest` 5건 작성 → Red 확인(검증 로직이
+  없어 4건이 예외 없이 통과해버려 실패) → 컨트롤러에 3개 검증 추가(Green)
+  → 전체 12개 테스트 클래스(49건) 통과 확인.
+- 커밋 전 `ktlintCheck`를 처음으로 실행해, Case 2에서 작성한
+  `MappingBatchUpsertRepository.findHotelIdsByExternalCodes`의 줄바꿈
+  스타일 위반 1건을 발견 — `ktlintFormat`으로 정리. 지금까지 커밋마다
+  `./gradlew test`만 돌리고 lint는 확인하지 않고 있었다는 뜻이라, 앞으로는
+  커밋 전 `ktlintCheck`도 같이 확인하기로 함.
+
+### 의사결정
+
+- **bounded concurrency는 새 결정이 아니라 "이미 있는 결정 확인"** —
+  요청받은 내용을 곧바로 작성하지 않고 먼저 기존 문서를 검색해 중복
+  여부를 확인. 이미 충분히 상세한 문서(원인 분석 + 검토한 대안 + 채택
+  안 + 왜 아직 구현 안 했는지)가 있어서, 거기 몇 줄을 덧붙이기보다
+  "이미 되어 있다"고 사용자에게 보고하는 쪽을 택함 — 문서 중복은 시간이
+  지나며 두 버전이 갈라지는 위험이 있어 지양.
+- **요청 파라미터 유효성 기준은 [가정]** — 스펙에 파라미터 검증 규칙이
+  없어 우리가 판단해서 채운 항목이라 `decision-logging` 스킬 기준대로
+  README "가정" 표에도 반영. 검증 범위를 "구조적으로 무의미한 조합만
+  거부"로 최소화하고, 과거 날짜 제한처럼 스펙 근거 없는 추가 제약은
+  넣지 않음 (근거 없는 임의 규칙을 늘리지 않는다는 이 프로젝트의
+  기존 원칙과 동일선상).
+- **검증은 `@Validated`+Bean Validation 대신 컨트롤러 내 수동 체크로
+  구현** — `adults`/`children`은 애노테이션(`@Min`)으로 가능하지만
+  `checkOut > checkIn`은 두 파라미터를 함께 봐야 하는 교차 검증이라
+  애노테이션만으로는 어차피 안 됨. 검증 방식을 파라미터 셋과 교차
+  파라미터 셋으로 나누기보다, 3개 규칙 전부를 같은 방식(수동 체크 +
+  `ResponseStatusException`)으로 통일 — 이 규모에 새 검증 프레임워크
+  의존성/애노테이션 처리 도입은 과하다고 판단.
+
+### AI 활용
+- 사용자가 남은 3개 항목(숫자 예시 수정, concurrency 문서화, 검증)을
+  순서대로 이어가라고 지시 → Claude가 각 항목 착수 전 먼저 관련 문서를
+  검색해 이미 되어 있는 부분(concurrency)과 새로 해야 하는 부분(검증)을
+  구분해 보고.
+
+### 참고 자료
+- `docs/architecture.md` "대규모(5만 건) 시나리오 검토 > 2. 공급사별
+  병렬 호출 개수 제한"
+- `README.md` "가정"
