@@ -94,9 +94,9 @@ Supplier A·B의 표현 차이를 흡수하는 표준 모델. 각 판단의 근�
             "totalAmount": 429000,
             "taxIncluded": true,
             "nightlyRates": [
-              { "date": "2026-09-01", "nightlyNetAmount": 132000 },
-              { "date": "2026-09-02", "nightlyNetAmount": 165000 },
-              { "date": "2026-09-03", "nightlyNetAmount": 132000 }
+              { "date": "2026-09-01", "nightlyNetAmount": 120000 },
+              { "date": "2026-09-02", "nightlyNetAmount": 150000 },
+              { "date": "2026-09-03", "nightlyNetAmount": 120000 }
             ]
           }
         }
