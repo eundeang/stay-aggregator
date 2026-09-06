@@ -115,8 +115,8 @@ WebClient로 각 공급사를 호출하고 도메인 모델로 변환하는 계�
 부록 스펙대로 정상/장애/무응답 3가지 상황을 재현하도록 구성. 실제 공급사 API는
 호출하지 않는다.
 
-→ [`docs/mock-supplier.md`](docs/mock-supplier.md), 스펙 원문 대신 재정리한
-참고 자료: [`docs/supplier-api-spec.md`](docs/supplier-api-spec.md)
+→ [`docs/mock-supplier.md`](docs/mock-supplier.md). 과제 안내 문서(부록 A)
+원문은 이 저장소에 포함하지 않는다.
 
 ## 가정
 
@@ -130,8 +130,7 @@ WebClient로 각 공급사를 호출하고 도메인 모델로 변환하는 계�
 | 공급사 API 타임아웃 값(connect 2초/response 4초) | 공급사 응답 시간에 대한 SLA가 스펙에 없음 — 일반적인 웹 서비스의 체감 대기 한계(수 초 이내)와 "연결 실패는 응답 지연보다 더 빨리 포기해도 된다"는 원칙으로 값을 판단(실측 아님). 상세: [`docs/architecture.md`](docs/architecture.md) "타임아웃 값" |
 
 → 별도 설계 근거가 필요한 항목은 관련 `docs/*.md`에도 상세를 반영한다
-(위 표의 두 번째 항목 참고). 스펙 문서 자체가 이 표를 참조하는 경우도
-있다(`docs/supplier-api-spec.md` 참고).
+(위 표의 두 번째 항목 참고).
 
 ## 테스트
 

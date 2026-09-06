@@ -35,18 +35,20 @@ Application 계층의 책임이다. 그래서 어댑터는 **외부 코드 기�
 
 ## 실패 판정 통일
 
-A(HTTP 상태 코드)와 B(HTTP 200 + `resultCode`)를 각 어댑터 내부에서 아래처럼 동일한
-`SupplierFailureReason`으로 변환한다.
+공급사마다 실패를 표현하는 방식 자체가 다르다 — A는 표준 HTTP 상태 코드로,
+B는 HTTP는 항상 200을 반환하고 본문의 자체 코드(`resultCode`)로만 실패를
+알린다. 이 표현 차이를 호출부가 알 필요 없도록, 각 어댑터 내부에서 공통의
+`SupplierFailureReason`으로 정규화한다 (스펙 원문의 정확한 코드 값은 과제
+안내에 따라 여기 옮겨 적지 않는다 — 상세는 Mock/DTO 구현 코드 참고).
 
-| 상황 | Supplier A | Supplier B | → SupplierFailureReason |
-|---|---|---|---|
-| 잘못된 요청 | HTTP 400 | resultCode E400 | INVALID_REQUEST |
-| 인증 실패 | HTTP 401 | resultCode E401 | AUTH_FAILED |
-| 호출 한도 초과 | HTTP 429 | resultCode E429 | RATE_LIMITED |
-| 공급사 내부 오류 | HTTP 500 | resultCode E500 | SUPPLIER_ERROR |
-| 일시적 장애 | HTTP 503 | resultCode E503 | SUPPLIER_ERROR |
-| 무응답/응답 지연 | WebClient 타임아웃 예외 | 동일 | TIMEOUT |
-| (공급사 응답과 무관 — 우리 시스템 내부 사유) | 이 공급사의 매핑이 비어있어 조회 자체를 시도 못 함 | 동일 | NO_MAPPING_DATA |
+| SupplierFailureReason | 의미 |
+|---|---|
+| `INVALID_REQUEST` | 잘못된 요청 |
+| `AUTH_FAILED` | 인증 실패 |
+| `RATE_LIMITED` | 호출 한도 초과 |
+| `SUPPLIER_ERROR` | 공급사 내부 오류·일시적 장애 |
+| `TIMEOUT` | 무응답/응답 지연 (WebClient 타임아웃 예외) |
+| `NO_MAPPING_DATA` | (공급사 응답과 무관 — 우리 시스템 내부 사유) 이 공급사의 매핑이 비어있어 조회 자체를 시도 못 함 |
 
 `NO_MAPPING_DATA`는 위 6가지와 달리 **어댑터가 판정하는 게 아니라
 `StaySearchService`가 판정**한다 — 공급사를 호출하기도 전에, 매핑 테이블에

@@ -15,7 +15,7 @@ import java.time.temporal.ChronoUnit
 private const val ERROR_CODE = "E503"
 private const val OK_CODE = "0000"
 
-@Tag(name = "Supplier B", description = "docs/supplier-api-spec.md의 Supplier B 재현 (HTTP는 항상 200, resultCode로 실패 표현)")
+@Tag(name = "Supplier B", description = "과제 안내 문서(부록 A)의 Supplier B 재현 (HTTP는 항상 200, resultCode로 실패 표현)")
 @RestController
 @RequestMapping("/b/api")
 class SupplierBController(private val modeStore: ModeStore) {

@@ -19,7 +19,7 @@ import java.time.LocalDate
 
 /**
  * 공급사 재고·요금 API(②)는 숙소 코드를 최대 50개까지만 받는다
- * (docs/supplier-api-spec.md "조회 흐름"). 그 이상을 한 번에 보내면 안 되므로
+ * (과제 안내 문서(부록 A) "조회 흐름"). 그 이상을 한 번에 보내면 안 되므로
  * 공급사별로 보유 숙소 코드를 이 크기로 나눠 여러 번 호출한다.
  */
 private const val HOTEL_CODES_CHUNK_SIZE = 50
@@ -74,7 +74,7 @@ class StaySearchService(
 
         // 매핑을 순회하지 않고 응답에 실제로 있는 offer만 순회한다 — 인원 초과 등으로
         // 응답에서 아예 빠진 객실 타입을 재고 0으로 억지로 채우지 않기 위함
-        // (근거: readme.md "가정", docs/supplier-api-spec.md "공통 규약").
+        // (근거: readme.md "가정", 과제 안내 문서(부록 A) "공통 규약").
         val offersByHotel: Map<HotelId, List<SupplierOffer>> =
             callResults
                 .flatMap { (supplier, result) ->

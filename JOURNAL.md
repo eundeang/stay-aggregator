@@ -384,3 +384,56 @@
 - `docs/architecture.md` "대규모(5만 건) 시나리오 검토", "매핑 생성 트리거"
   (TTL 지연 갱신 보류 항목과의 논리적 일관성)
 - `docs/judgment-checklist.md`
+
+---
+
+## Day 6 - 과제 안내 문서(부록 A) 원문 재현 위반 소지 제거
+
+### 수행 내용
+- 사용자가 "과제 안내 문서는 부록 A의 Supplier API 스펙을 저장소에 커밋·게시하면
+  안 되고, README에는 본인 말로 요약만 하라"는 지침을 근거로 `docs/supplier-api-spec.md`가
+  위반 소지가 있다고 지적 — 실제로 해당 파일을 확인해 정확한 엔드포인트 경로,
+  전체 JSON 응답 예시, 에러/resultCode 표 전체를 담고 있음을 확인하고 삭제
+- `docs/mock-supplier.md`, `docs/supplier-adapter.md`에도 같은 성격(정확한
+  엔드포인트 경로, 전체 실패 코드 표)의 재현이 있어 "우리가 무엇을 왜 이렇게
+  설계했는지"만 남기고 코드 값 나열은 제거
+- 코드 주석·Swagger `@Tag` 설명 등 저장소 전반에서 `docs/supplier-api-spec.md`를
+  가리키던 참조를 "과제 안내 문서(부록 A)"로 교체 (파일이 없어졌으므로 dangling
+  링크 정리 목적, 원문 재게시는 아님)
+- 저장소가 Public GitHub(`origin/main`)에 이미 push된 상태였고, 문제의 파일을
+  추가/수정한 커밋(`1519f3c`, `9d16985`)이 이미 origin/main의 조상 커밋임을
+  `git merge-base --is-ancestor`로 확인 — 즉 삭제 전 스펙 원문이 현재도 공개
+  저장소에서 열람 가능한 상태였음
+
+### 의사결정
+
+- **`docs/supplier-api-spec.md` 삭제, 나머지 문서는 "설계 판단"만 남기고
+  재현 제거** — Mock 구현 코드(DTO, Mock 컨트롤러의 실제 응답 생성 로직)에
+  스펙값이 들어가는 것은 과제 지침상 허용되는 영역이라 손대지 않았다. 반면
+  마크다운 문서가 "이 문서가 유일한 스펙 소스"라며 엔드포인트·JSON·에러 코드
+  전체를 표로 재현하는 것은 지침이 명시적으로 금지하는 행위라 판단 — 문서에는
+  "왜 이렇게 설계했는지"만 남기고, 상황을 지칭할 땐 코드 값 나열 대신 우리가
+  이미 코드에서 쓰는 이름(`SupplierFailureReason`의 `RATE_LIMITED` 등)이나
+  ①/② 같은 우리 표기를 쓰도록 정리.
+- **JOURNAL.md의 과거 기록은 수정하지 않음** — 과거 항목들이
+  `docs/supplier-api-spec.md`를 인용하지만, 코드 값을 나열한 게 아니라 "그
+  문서를 참고해서 확인했다"는 사실 기록이라 시행착오를 숨기지 않는다는
+  프로젝트 원칙(`commit-convention` 스킬)에 따라 그대로 둠 — 대신 이번 Day 6
+  항목으로 정정 사실 자체를 남김.
+- **Git history 재작성 여부는 사용자 확인 후 진행** — 파일 삭제만으로는
+  과거 커밋(`git log -p`)에서 원문이 그대로 보이고, 이미 Public origin/main에
+  push돼 있어 실질적 노출이 계속됨. `git filter-repo`로 전체 히스토리에서
+  해당 내용을 제거하고 강제 push하는 방안을 사용자에게 제시 — 원격 저장소
+  히스토리를 되돌릴 수 없게 덮어쓰는 작업이라 실행 전 반드시 확인받기로 함.
+
+### AI 활용
+- 사용자가 "이건 점수가 아니라 전형 제외 문제"라며 최우선 처리를 요구하고
+  구체적 위반 근거(부록 A 원문 재현 금지, Mock 코드는 예외)까지 제시 →
+  Claude가 지적된 파일 외에 같은 성격의 문제가 다른 문서 2개에도 있는지
+  직접 grep으로 전수 확인해 추가로 찾아냄(`docs/mock-supplier.md`,
+  `docs/supplier-adapter.md`) — 사용자가 지목한 범위보다 넓게 점검.
+- Git history 노출 여부(이미 push됐는지, public인지)를 추측하지 않고
+  `git merge-base --is-ancestor`, `gh repo view`로 직접 확인 후 보고.
+
+### 참고 자료
+- `docs/mock-supplier.md`, `docs/supplier-adapter.md`, `readme.md` "Mock Supplier"

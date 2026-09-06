@@ -9,7 +9,7 @@
 - `calculateAvailableRooms(dailyRemainingRooms: List<DailyInventory>): Int`
   — 기간 내 최솟값. 근거: `docs/domain-model.md` "재고 / 예약 가능 객실 수"
 - `calculateTotalAmount(nightlyRate, taxAmount 목록): Long` (Supplier A 전용 헬퍼)
-  — `Σ(nightlyRate+taxAmount)`. 근거: `docs/supplier-api-spec.md` "요금 규약"
+  — `Σ(nightlyRate+taxAmount)`. 근거: 과제 안내 문서(부록 A) "요금 규약"
   — 구현 위치는 `supplier/suppliera`가 아니라 `domain`으로 결정 (순수 계산,
   근거는 JOURNAL.md Day 2 참고)
 - 테스트 케이스: 일반 케이스, 최솟값 0(예약불가), 1박 단일 케이스, 전날짜 동일값
@@ -29,7 +29,7 @@
     - Repository는 실제 DB 대신 in-memory(fake) 또는 `@DataJpaTest`로 격리 테스트
 
 ### 1-3. Supplier A/B 어댑터 ✅ 완료
-- 이미 상세 설계됨: `docs/supplier-adapter.md`, `docs/supplier-api-spec.md`
+- 이미 상세 설계됨: `docs/supplier-adapter.md`
 - 테스트 케이스: 이전 대화에서 정리한 실패 판정 매핑표 전체(A 6종, B 6종),
   정상 응답 파싱(`breakfastIncluded` 위치, `totalAmount` 계산, `nightlyNetAmounts`
   null 처리), 타임아웃 → `TIMEOUT` 매핑, `X-Api-Key` 헤더 전송 검증
