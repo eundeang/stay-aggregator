@@ -36,7 +36,12 @@ class StaySearchResponseSerializationTest
         private val hotelMappingRepository: HotelMappingRepository,
         private val roomTypeMappingRepository: RoomTypeMappingRepository,
     ) {
-        private val objectMapper = JsonMapper.builder().addModule(kotlinModule()).findAndAddModules().build()
+        private val objectMapper =
+            JsonMapper
+                .builder()
+                .addModule(kotlinModule())
+                .findAndAddModules()
+                .build()
 
         private val checkIn = LocalDate.of(2026, 9, 1)
         private val checkOut = LocalDate.of(2026, 9, 4)

@@ -48,7 +48,8 @@ class MappingBatchUpsertRepository(
         val sql =
             "SELECT external_hotel_code, id FROM hotel_mapping WHERE supplier = ? AND external_hotel_code IN ($placeholders)"
         val args: List<Any> = listOf(supplier.name) + externalHotelCodes
-        return jdbcTemplate.query(sql, { rs, _ -> rs.getString("external_hotel_code") to rs.getLong("id") }, *args.toTypedArray())
+        return jdbcTemplate
+            .query(sql, { rs, _ -> rs.getString("external_hotel_code") to rs.getLong("id") }, *args.toTypedArray())
             .toMap()
     }
 
