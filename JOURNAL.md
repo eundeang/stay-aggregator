@@ -437,3 +437,61 @@
 
 ### 참고 자료
 - `docs/mock-supplier.md`, `docs/supplier-adapter.md`, `readme.md` "Mock Supplier"
+
+---
+
+## Day 7 - hotel_mapping 내부 surrogate ID 도입 (Case 1)
+
+### 수행 내용
+- 사용자가 재검토를 요청 — `hotel_mapping`의 PK가 `(supplier,
+  external_hotel_code)` 복합키뿐이라, API 응답에 그대로 노출되면 공급사
+  원본 코드가 그대로 드러난다는 문제를 지적. `domain-model.md` 원안은
+  `RoomTypeOffer.roomTypeId`처럼 `hotelId`도 실제 발급된 내부 PK(Long)여야
+  하는데 구현이 그렇지 않음을 확인 — Case 1~4로 나눠 순서대로 진행하기로
+  사용자와 합의 (Case 2: room_type_mapping FK 전환, Case 3: batch upsert
+  대응, Case 4: 검색 API 응답 타입 전환).
+- Case 1(이번 커밋 범위): `hotel_mapping`에 `id BIGINT AUTO_INCREMENT` PK
+  추가, `(supplier, external_hotel_code)`는 UNIQUE 제약으로 유지.
+- TDD: `HotelMappingRepositoryTest` 작성(Red, 컴파일 실패로 확인) →
+  `HotelMapping`/`HotelMappingRepository` 구현(Green, 신규 테스트 4건
+  포함 전체 10개 테스트 클래스 통과 확인) → `HotelId`에서 이제 쓰이지
+  않는 JPA 어노테이션(`@Embeddable`/`@Column`/`@Enumerated`) 제거(Refactor,
+  재확인 통과).
+
+### 의사결정
+
+- **`hotel_mapping.id`(surrogate Long) 도입, `(supplier,
+  external_hotel_code)`는 UNIQUE로 격하** — Day 3에서 "domain.HotelId를
+  `@EmbeddedId`로 재사용"하기로 정한 결정을 부분적으로 뒤집음. 당시엔
+  "같은 내부 식별자로 매핑되는가"만 보장하면 된다고 판단했는데, 실제로는
+  "그 식별자가 공급사 원본 코드를 그대로 노출하지 않아야 한다"는 요구까지
+  있었다는 걸 놓쳤었다. `docs/architecture.md`에는 이미 "이미 발급된 내부
+  `hotel_mapping_id`"라는 표현으로 목표 설계가 서술돼 있었으나 구현이
+  따라가지 못한 상태였음.
+  - 검토했던 대안: V1 마이그레이션을 직접 수정 vs V2로 별도 추가. 이미
+    Public 저장소에 반영된 스키마 변경 이력을 지우지 않고 "기존 설계 →
+    문제 발견 → 개선"의 흐름을 커밋 히스토리에 남기는 쪽(V2)을 택함 —
+    데이터 보존이 필요 없는 로컬 개발 DB뿐이라 마이그레이션 자체는 단순
+    ALTER TABLE로 충분했음.
+- **`HotelId`를 순수 도메인 값 타입으로 되돌림** — surrogate PK 도입으로
+  `HotelMapping`이 더 이상 `HotelId`를 `@EmbeddedId`로 쓰지 않게 되면서,
+  `@Embeddable`/`@Column`/`@Enumerated`/`Serializable`이 전부 불필요한
+  코드가 됨. `HotelId`는 이제 "공급사 원본 (supplier, externalHotelCode)
+  조회 키"라는 순수 도메인 역할만 남기고 JPA 관심사를 제거.
+- **`StaySearchService`의 grouping 로직은 이번 케이스에서 그대로 유지** —
+  `Stay.hotelId` 타입 전환(Case 4)까지는 기존 동작(응답의 hotelId가
+  `HotelId` 복합 객체)을 그대로 보존해야 각 케이스를 독립적으로 커밋할 수
+  있음. `hotelMappingById`/`hotelCodesBySupplier`를 엔티티의 새 flat
+  프로퍼티(`supplier`/`externalHotelCode`) 기반으로 재계산하도록만 수정.
+
+### AI 활용
+- 사용자가 Case별 의존관계(1→2→3→4)와 각 케이스의 테스트 관점(특히 Case 3의
+  "재동기화해도 hotelId 유지", Case 4의 실제 JSON 직렬화 테스트 필요성)을
+  구체적으로 설계해 지시 — Claude가 제안한 4단계 개요에 성공 기준 4가지를
+  추가로 명시.
+- Red 확인은 추측 없이 실제로 `./gradlew test --tests
+  HotelMappingRepositoryTest`를 실행해 컴파일 실패 로그를 확인한 뒤 진행.
+
+### 참고 자료
+- `docs/architecture.md` "매핑 테이블: 왜 이 스키마인가"
+- `docs/domain-model.md` "Kotlin 도메인 모델 (초안)"

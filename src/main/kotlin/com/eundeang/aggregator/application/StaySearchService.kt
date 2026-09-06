@@ -42,10 +42,12 @@ class StaySearchService(
         children: Int,
     ): StaySearchResult {
         val hotelMappings = hotelMappingRepository.findAll()
-        val hotelMappingById = hotelMappings.associateBy { it.id }
+        val hotelMappingById = hotelMappings.associateBy { HotelId(it.supplier, it.externalHotelCode) }
         val roomTypeMappingByKey =
-            roomTypeMappingRepository.findAll().associateBy { it.hotelMapping.id to it.externalRoomTypeCode }
-        val hotelCodesBySupplier = hotelMappings.groupBy({ it.id.supplier }) { it.id.externalHotelCode }
+            roomTypeMappingRepository.findAll().associateBy {
+                HotelId(it.hotelMapping.supplier, it.hotelMapping.externalHotelCode) to it.externalRoomTypeCode
+            }
+        val hotelCodesBySupplier = hotelMappings.groupBy({ it.supplier }) { it.externalHotelCode }
 
         // 매핑이 비어있는 공급사는 조용히 건너뛰지 않고 NO_MAPPING_DATA로 명시한다 —
         // "실제로 상품이 0개인 정상 상황"과 "동기화 실패로 매핑 자체가 없는 비정상

@@ -1,21 +1,11 @@
 package com.eundeang.aggregator.domain
 
-import jakarta.persistence.Column
-import jakarta.persistence.Embeddable
-import jakarta.persistence.EnumType
-import jakarta.persistence.Enumerated
-import java.io.Serializable
-
 /**
- * 숙소의 전역 식별자 — (supplier, externalHotelCode). mapping.HotelMapping이
- * 이 타입을 그대로 @EmbeddedId로 재사용해, 같은 개념을 표현하는 타입이
- * domain/mapping에 중복 존재하지 않게 한다.
+ * 공급사 원본 기준 숙소 식별자 — (supplier, externalHotelCode). 공급사 응답을
+ * 내부 매핑(HotelMapping)에 연결하는 조회 키로만 쓰인다. 실제 API에 노출되는
+ * 내부 숙소 ID는 `HotelMapping.id`(Long) — 근거: docs/architecture.md "매핑 테이블".
  */
-@Embeddable
 data class HotelId(
-    @Enumerated(EnumType.STRING)
-    @Column(name = "supplier", length = 20)
     val supplier: SupplierCode,
-    @Column(name = "external_hotel_code", length = 100)
     val externalHotelCode: String,
-) : Serializable
+)

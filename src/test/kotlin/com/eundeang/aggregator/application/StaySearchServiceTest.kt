@@ -43,7 +43,7 @@ class StaySearchServiceTest
             roomTypeName: String,
             maxOccupancy: Int = 2,
         ): RoomTypeMapping {
-            val hotelMapping = hotelMappingRepository.save(HotelMapping(HotelId(supplier, externalHotelCode), hotelName))
+            val hotelMapping = hotelMappingRepository.save(HotelMapping(supplier, externalHotelCode, hotelName))
             return roomTypeMappingRepository.save(
                 RoomTypeMapping(hotelMapping, externalRoomTypeCode, roomTypeName, maxOccupancy),
             )
