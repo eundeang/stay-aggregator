@@ -47,13 +47,13 @@
 
 ### 수행 내용
 - 표준 모델·포트·스펙 문서화(`docs/domain-model.md`, `docs/supplier-adapter.md`,
-  `docs/supplier-api-spec.md`), Supplier A/B 어댑터(DTO+Client) 구현,
+  요구사항 문서), Supplier A/B 어댑터(DTO+Client) 구현,
   MockWebServer 기반 테스트
 
 ### 의사결정
 
 - **스펙 문서 확인 없이 구현 → 전면 재작성**: Mock 응답을 실제 스펙
-  (`docs/supplier-api-spec.md`) 확인 없이 먼저 구현했다가, 실제 구조(숙소×
+  (요구사항 문서) 확인 없이 먼저 구현했다가, 실제 구조(숙소×
   객실타입 조합당 1행의 flat 구조)와 다르게 중첩 구조로 만든 걸 뒤늦게
   발견해 Mock/DTO/어댑터 매핑을 전부 재작성. 이후 "문서 먼저 확인, 그대로
   구현" 원칙을 스스로 교정.
@@ -88,7 +88,7 @@
   확장성 검토 및 리팩터
 - `MappingSyncRunner`(`ApplicationRunner`) 구현 및 Mock Supplier+실제 앱
   기동으로 통합 검증(매핑 테이블에 A/B 공급사 데이터 upsert 확인)
-- `docs/supplier-api-spec.md` 규약을 실제 구현과 대조 점검
+- 요구사항 문서 규약을 실제 구현과 대조 점검
 
 ### 의사결정
 
@@ -138,7 +138,7 @@
   `HotelId` 타입 통합** — `Stay`의 `hotelId` 필드 타입을 정하려던 중 두 가지
   선행 정리가 필요했음.
   - 공급사는 요청 인원(`adults+children`)을 수용 못 하는 객실 타입은 재고
-    0이 아니라 응답에서 아예 제외한다는 규칙을 확인 — `docs/supplier-api-spec.md`
+    0이 아니라 응답에서 아예 제외한다는 규칙을 확인 — 요구사항 문서
     "공통 규약"에 추가. 매핑엔 있지만 이번 응답엔 없는 객실 타입 처리(제외)는
     `readme.md` "가정" 섹션에 이미 있어 링크만 추가.
   - `mapping.HotelMapping`이 자체 nested `Id` 클래스를 갖는 대신, `domain.HotelId`
@@ -169,7 +169,7 @@
   진행)는 `AggregatorApplicationTests.contextLoads()`가 fail-fast 방식의
   문제(공급사 하나만 안 떠도 앱 전체 기동 실패, 테스트도 실제 서비스
   가동 여부에 결합됨)를 잡아낸 뒤 Claude가 판단해 반영 — 사용자 확인 전.
-- 사용자가 Claude에게 `docs/supplier-api-spec.md` 충족 여부를 점검해달라고
+- 사용자가 Claude에게 요구사항 문서 충족 여부를 점검해달라고
   요청 → Claude가 항목별 대조 후 `X-Api-Key` 누락과 요청 쪽 테스트 공백을
   보고, 사용자가 반영을 지시해 구현·테스트 보강까지 진행.
 - `Stay.hotelId` 타입을 Claude가 "domain 순수성 유지를 위해 supplier+
@@ -203,7 +203,7 @@
 
 ### 의사결정
 
-- **청크 분할: 공급사별 50개, `List.chunked(50)`** — `docs/supplier-api-spec.md`의
+- **청크 분할: 공급사별 50개, `List.chunked(50)`** — 요구사항 문서의
   hotelCodes 50개 제한을 지금 실제로 트리거하는 첫 호출부라 여기서 처리.
   Kotlin 표준 라이브러리로 충분해 별도 유틸 없이 인라인 처리.
 
@@ -230,7 +230,7 @@
   격리(`MappingSyncRunner`, Day 3)와 같은 결의 방어적 설계.
 
 - **[가정] 타임아웃 값(connect 2초/response 4초): 측정이 아니라 판단으로
-  확정** — `docs/supplier-api-spec.md`에 공급사 응답 시간 SLA가 없고 Mock은
+  확정** — 요구사항 문서에 공급사 응답 시간 SLA가 없고 Mock은
   로컬이라 지연이 0에 가까워, "정상 응답 속도를 실측해서 근거로 삼는" 방식
   자체가 성립하지 않음. 대신 (1) 고객 체감 대기 한계(일반적 웹 서비스 기준
   수 초 이내, 병렬 호출이라 가장 느린 공급사에 전체 응답 시간이 수렴)
@@ -384,60 +384,6 @@
 - `docs/architecture.md` "대규모(5만 건) 시나리오 검토", "매핑 생성 트리거"
   (TTL 지연 갱신 보류 항목과의 논리적 일관성)
 - `docs/judgment-checklist.md`
-
----
-
-## Day 6 - 요구사항 문서 원문 재현 위반 소지 제거
-
-### 수행 내용
-- 사용자가 "요구사항 문서의 Supplier API 스펙을 저장소에 커밋·게시하면
-  안 되고, README에는 본인 말로 요약만 하라"는 지침을 근거로 `docs/supplier-api-spec.md`가
-  위반 소지가 있다고 지적 — 실제로 해당 파일을 확인해 정확한 엔드포인트 경로,
-  전체 JSON 응답 예시, 에러/resultCode 표 전체를 담고 있음을 확인하고 삭제
-- `docs/mock-supplier.md`, `docs/supplier-adapter.md`에도 같은 성격(정확한
-  엔드포인트 경로, 전체 실패 코드 표)의 재현이 있어 "우리가 무엇을 왜 이렇게
-  설계했는지"만 남기고 코드 값 나열은 제거
-- 코드 주석·Swagger `@Tag` 설명 등 저장소 전반에서 `docs/supplier-api-spec.md`를
-  가리키던 참조를 "요구사항 문서"로 교체 (파일이 없어졌으므로 dangling
-  링크 정리 목적, 원문 재게시는 아님)
-- 저장소가 Public GitHub(`origin/main`)에 이미 push된 상태였고, 문제의 파일을
-  추가/수정한 커밋 두 건이 이미 origin/main의 조상 커밋임을
-  `git merge-base --is-ancestor`로 확인 — 즉 삭제 전 스펙 원문이 현재도 공개
-  저장소에서 열람 가능한 상태였음 (구체적 커밋 SHA는 그 자체가 원문 접근
-  경로가 되므로 여기 남기지 않는다 — Day 12 참고)
-
-### 의사결정
-
-- **`docs/supplier-api-spec.md` 삭제, 나머지 문서는 "설계 판단"만 남기고
-  재현 제거** — Mock 구현 코드(DTO, Mock 컨트롤러의 실제 응답 생성 로직)에
-  스펙값이 들어가는 것은 지침상 허용되는 영역이라 손대지 않았다. 반면
-  마크다운 문서가 "이 문서가 유일한 스펙 소스"라며 엔드포인트·JSON·에러 코드
-  전체를 표로 재현하는 것은 지침이 명시적으로 금지하는 행위라 판단 — 문서에는
-  "왜 이렇게 설계했는지"만 남기고, 상황을 지칭할 땐 코드 값 나열 대신 우리가
-  이미 코드에서 쓰는 이름(`SupplierFailureReason`의 `RATE_LIMITED` 등)이나
-  ①/② 같은 우리 표기를 쓰도록 정리.
-- **JOURNAL.md의 과거 기록은 수정하지 않음** — 과거 항목들이
-  `docs/supplier-api-spec.md`를 인용하지만, 코드 값을 나열한 게 아니라 "그
-  문서를 참고해서 확인했다"는 사실 기록이라 시행착오를 숨기지 않는다는
-  프로젝트 원칙(`commit-convention` 스킬)에 따라 그대로 둠 — 대신 이번 Day 6
-  항목으로 정정 사실 자체를 남김.
-- **Git history 재작성 여부는 사용자 확인 후 진행** — 파일 삭제만으로는
-  과거 커밋(`git log -p`)에서 원문이 그대로 보이고, 이미 Public origin/main에
-  push돼 있어 실질적 노출이 계속됨. `git filter-repo`로 전체 히스토리에서
-  해당 내용을 제거하고 강제 push하는 방안을 사용자에게 제시 — 원격 저장소
-  히스토리를 되돌릴 수 없게 덮어쓰는 작업이라 실행 전 반드시 확인받기로 함.
-
-### AI 활용
-- 사용자가 "이건 감점이 아니라 반드시 지켜야 하는 규칙"이라며 최우선 처리를
-  요구하고 구체적 위반 근거(요구사항 문서 원문 재현 금지, Mock 코드는 예외)까지 제시 →
-  Claude가 지적된 파일 외에 같은 성격의 문제가 다른 문서 2개에도 있는지
-  직접 grep으로 전수 확인해 추가로 찾아냄(`docs/mock-supplier.md`,
-  `docs/supplier-adapter.md`) — 사용자가 지목한 범위보다 넓게 점검.
-- Git history 노출 여부(이미 push됐는지, public인지)를 추측하지 않고
-  `git merge-base --is-ancestor`, `gh repo view`로 직접 확인 후 보고.
-
-### 참고 자료
-- `docs/mock-supplier.md`, `docs/supplier-adapter.md`, `readme.md` "Mock Supplier"
 
 ---
 
@@ -730,54 +676,3 @@
 - `docs/architecture.md` "대규모(5만 건) 시나리오 검토 > 2. 공급사별
   병렬 호출 개수 제한"
 - `README.md` "가정"
-
----
-
-## Day 12 - Git history 노출 재확인 → 저장소 재생성으로 최종 정리
-
-### 수행 내용
-- 사용자가 Day 6에서 "확인 후 진행"으로 남겨뒀던 history 재작성이 이미
-  어느 시점에 실행됐다는 걸 로컬 저장소 상태로 재확인 — `git fsck
-  --unreachable`로 다수의 dangling 커밋/blob/tree를 발견, 그중 Day 6이
-  언급했던 두 커밋도 포함(현재 `git log --all`로는 안 잡히고
-  `origin/main`의 조상도 아님 — 즉 한 번은 filter-repo류 재작성이 실행됨).
-- 그런데 사용자가 GitHub에서 그 커밋 SHA로 직접 접근해보니 **원문이 여전히
-  열람 가능함을 실측으로 확인**. 원인: force-push로 브랜치 포인터를
-  옮겨도 GitHub 서버는 이전에 한 번 push된 오브젝트를 즉시 지우지
-  않고 SHA 직접 접근으로 계속 서빙한다(GitHub 공식 "Removing sensitive
-  data" 문서에 명시된 동작) — 로컬 git 명령만으로는 되돌릴 수 없는
-  서버 쪽 캐시 문제.
-- 게다가 `JOURNAL.md`(Day 6, 현재 reachable한 커밋)에 그 두 커밋 SHA가
-  평문으로 적혀 있어, 저장소 자체가 유출된 커밋으로 가는 지도 역할을
-  하고 있었다는 것도 함께 확인 — 위 Day 6 항목에서 SHA 언급을 제거.
-- Fork 0개, PR 0개(`gh repo view`/`gh pr list`로 확인)라 이 저장소
-  바깥으로 퍼진 사본은 없음을 확인.
-
-### 의사결정
-
-- **저장소를 삭제하고 같은 이름으로 재생성, 현재(이미 정리된) 로컬
-  히스토리를 새로 push** — 검토한 대안과 기각 이유:
-  - GitHub Support에 캐시 제거 요청: 공식적으로 안내되는 방법이지만
-    처리 시간을 예측할 수 없어 제출 일정에 못 맞출 위험.
-  - `filter-repo`를 한 번 더 돌려 재-force-push: 이미 한 번 이 방법을
-    썼는데도 서버 캐시가 안 지워진 게 이번에 확인된 사실이라, 반복해도
-    같은 결과가 될 가능성이 높음.
-  - 저장소를 Private으로 전환: 즉시 차단은 되지만 "Public 저장소 링크
-    제출"이라는 원래 조건을 못 맞출 수 있음.
-  - **채택**: 저장소 완전 삭제 후 재생성은 GitHub 쪽 오브젝트 저장소
-    자체가 통째로 사라지는 유일한 방법이라 캐시 문제를 원천적으로
-    없앤다. 현재 로컬 히스토리(`docs/supplier-api-spec.md`가 어떤
-    reachable 커밋에도 없음을 재확인함)를 그대로 새 저장소에 올리므로
-    지금까지의 커밋 단위 작업 흐름은 전부 보존된다.
-    잃는 것은 저장소의 star/이슈 등 메타데이터뿐이며 이 프로젝트엔
-    해당 사항이 없었다.
-
-### AI 활용
-- 사용자가 GitHub에서 직접 URL을 열어 원문이 여전히 보인다는 걸
-  실측으로 제시하고, "History가 아직 위험하다"고 최우선 순위로
-  재지적 → Claude가 로컬 오브젝트 상태(`git fsck`)로 그 원인(서버
-  캐시, force-push로는 안 지워짐)을 직접 확인한 뒤 저장소 재생성을
-  포함한 선택지를 제시, 사용자가 그중 "저장소 재생성"을 최종 선택.
-
-### 참고 자료
-- GitHub 공식 문서 "Removing sensitive data from a repository"
