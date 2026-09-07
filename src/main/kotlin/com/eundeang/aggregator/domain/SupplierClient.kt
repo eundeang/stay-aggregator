@@ -1,5 +1,6 @@
 package com.eundeang.aggregator.domain
 
+import io.swagger.v3.oas.annotations.media.Schema
 import java.time.LocalDate
 
 /**
@@ -52,6 +53,7 @@ sealed class SupplierAvailabilityResult {
     ) : SupplierAvailabilityResult()
 }
 
+@Schema(description = "공급사 조회 실패 사유")
 enum class SupplierFailureReason {
     TIMEOUT, // 무응답/응답 지연으로 타임아웃 발생
     SUPPLIER_ERROR, // 공급사 측 오류 (5xx, E500/E503 등)
