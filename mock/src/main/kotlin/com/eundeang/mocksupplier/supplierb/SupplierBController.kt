@@ -3,6 +3,7 @@ package com.eundeang.mocksupplier.supplierb
 import com.eundeang.mocksupplier.ModeStore
 import com.eundeang.mocksupplier.MockMode
 import com.eundeang.mocksupplier.NO_RESPONSE_DELAY_MS
+import com.eundeang.mocksupplier.datesBetween
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.tags.Tag
 import org.springframework.web.bind.annotation.GetMapping
@@ -10,7 +11,6 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 import java.time.LocalDate
-import java.time.temporal.ChronoUnit
 
 private const val ERROR_CODE = "E503"
 private const val OK_CODE = "0000"
@@ -78,10 +78,5 @@ class SupplierBController(private val modeStore: ModeStore) {
             MockMode.DELAY -> Thread.sleep(modeStore.getDelaySeconds("b") * 1000)
             else -> {}
         }
-    }
-
-    private fun datesBetween(checkIn: LocalDate, checkOut: LocalDate): List<LocalDate> {
-        val nights = ChronoUnit.DAYS.between(checkIn, checkOut)
-        return (0 until nights).map { checkIn.plusDays(it) }
     }
 }

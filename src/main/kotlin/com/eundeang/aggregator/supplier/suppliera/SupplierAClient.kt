@@ -10,6 +10,7 @@ import com.eundeang.aggregator.domain.SupplierHotel
 import com.eundeang.aggregator.domain.SupplierOffer
 import com.eundeang.aggregator.domain.SupplierRoomType
 import com.eundeang.aggregator.domain.calculateTotalAmount
+import com.eundeang.aggregator.supplier.isTimeout
 import kotlinx.coroutines.CancellationException
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.http.HttpStatusCode
@@ -17,7 +18,6 @@ import org.springframework.stereotype.Component
 import org.springframework.web.reactive.function.client.WebClient
 import org.springframework.web.reactive.function.client.awaitBody
 import org.springframework.web.reactive.function.client.awaitExchange
-import java.net.http.HttpTimeoutException
 import java.time.LocalDate
 
 @Component
@@ -85,15 +85,6 @@ private fun mapStatusToReason(status: HttpStatusCode): SupplierFailureReason =
         status.is5xxServerError -> SupplierFailureReason.SUPPLIER_ERROR
         else -> SupplierFailureReason.UNKNOWN
     }
-
-private fun isTimeout(throwable: Throwable): Boolean {
-    var cause: Throwable? = throwable
-    while (cause != null) {
-        if (cause is HttpTimeoutException) return true
-        cause = cause.cause
-    }
-    return false
-}
 
 private fun SupplierAHotelDto.toSupplierHotel(): SupplierHotel =
     SupplierHotel(

@@ -3,6 +3,7 @@ package com.eundeang.mocksupplier.suppliera
 import com.eundeang.mocksupplier.ModeStore
 import com.eundeang.mocksupplier.MockMode
 import com.eundeang.mocksupplier.NO_RESPONSE_DELAY_MS
+import com.eundeang.mocksupplier.datesBetween
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.tags.Tag
 import org.springframework.http.HttpStatus
@@ -12,7 +13,6 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 import java.time.LocalDate
-import java.time.temporal.ChronoUnit
 
 @Tag(name = "Supplier A", description = "요구사항 문서의 Supplier A 재현")
 @RestController
@@ -84,10 +84,5 @@ class SupplierAController(private val modeStore: ModeStore) {
                 null
             }
         }
-    }
-
-    private fun datesBetween(checkIn: LocalDate, checkOut: LocalDate): List<LocalDate> {
-        val nights = ChronoUnit.DAYS.between(checkIn, checkOut)
-        return (0 until nights).map { checkIn.plusDays(it) }
     }
 }
