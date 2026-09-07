@@ -1,7 +1,5 @@
 package com.eundeang.aggregator.application
 
-import com.eundeang.aggregator.domain.SupplierAvailabilityResult
-import com.eundeang.aggregator.domain.SupplierClient
 import com.eundeang.aggregator.domain.SupplierCode
 import com.eundeang.aggregator.domain.SupplierHotel
 import com.eundeang.aggregator.domain.SupplierRoomType
@@ -14,7 +12,6 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest
 import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase
 import org.springframework.jdbc.core.JdbcTemplate
-import java.time.LocalDate
 import javax.sql.DataSource
 
 /**
@@ -64,20 +61,5 @@ class MappingSyncRunnerTest
             assertEquals("Riverside Hotel Seoul", mappingB.hotelName)
             assertEquals(1, roomTypeMappingRepository.findAllByHotelMapping(mappingA).size)
             assertEquals(1, roomTypeMappingRepository.findAllByHotelMapping(mappingB).size)
-        }
-
-        private class FakeSupplierClient(
-            override val supplier: SupplierCode,
-            private val hotels: List<SupplierHotel>,
-        ) : SupplierClient {
-            override suspend fun fetchHotels(): List<SupplierHotel> = hotels
-
-            override suspend fun fetchAvailability(
-                externalHotelCodes: List<String>,
-                checkIn: LocalDate,
-                checkOut: LocalDate,
-                adults: Int,
-                children: Int,
-            ): SupplierAvailabilityResult = throw UnsupportedOperationException("이 테스트에서는 사용되지 않음")
         }
     }

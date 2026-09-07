@@ -21,7 +21,7 @@ import java.util.stream.Stream
 /**
  * 요청 파라미터 검증은 시스템 경계(컨트롤러)에서 수행 — 근거 없는 조합(checkOut이
  * checkIn보다 앞선 경우, 인원 0명 이하 등)이 서비스/DB 레벨까지 내려가지 않도록 한다.
- * 스펙(부록 A)에 명시된 규칙이 아니라 우리가 판단해 채운 가정 — README "가정" 참고.
+ * 요구사항 문서에 명시된 규칙이 아니라 우리가 판단해 채운 가정 — README "가정" 참고.
  */
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)

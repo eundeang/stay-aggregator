@@ -1,11 +1,10 @@
 package com.eundeang.aggregator.web
 
+import com.eundeang.aggregator.application.FakeSupplierClient
 import com.eundeang.aggregator.application.StaySearchService
 import com.eundeang.aggregator.domain.DailyInventory
 import com.eundeang.aggregator.domain.SupplierAvailabilityResult
-import com.eundeang.aggregator.domain.SupplierClient
 import com.eundeang.aggregator.domain.SupplierCode
-import com.eundeang.aggregator.domain.SupplierHotel
 import com.eundeang.aggregator.domain.SupplierOffer
 import com.eundeang.aggregator.mapping.HotelMapping
 import com.eundeang.aggregator.mapping.HotelMappingRepository
@@ -54,18 +53,8 @@ class StaySearchResponseSerializationTest
                 roomTypeMappingRepository.save(RoomTypeMapping(hotelMapping, "DLX-TWN", "Deluxe Twin", 2))
 
             val client =
-                object : SupplierClient {
-                    override val supplier = SupplierCode.SUPPLIER_A
-
-                    override suspend fun fetchHotels(): List<SupplierHotel> = emptyList()
-
-                    override suspend fun fetchAvailability(
-                        externalHotelCodes: List<String>,
-                        checkIn: LocalDate,
-                        checkOut: LocalDate,
-                        adults: Int,
-                        children: Int,
-                    ) = SupplierAvailabilityResult.Success(
+                FakeSupplierClient(SupplierCode.SUPPLIER_A) {
+                    SupplierAvailabilityResult.Success(
                         listOf(
                             SupplierOffer(
                                 externalHotelCode = "A-10023",

@@ -40,6 +40,9 @@ class MappingSyncServiceTest
             service = MappingSyncService(mappingBatchUpsertService)
         }
 
+        private fun findHotel(externalHotelCode: String) =
+            hotelMappingRepository.findBySupplierAndExternalHotelCode(SupplierCode.SUPPLIER_A, externalHotelCode)!!
+
         @Test
         fun `신규 숙소를 동기화하면 HotelMapping과 RoomTypeMapping이 생성된다`() {
             val hotels =
@@ -56,9 +59,7 @@ class MappingSyncServiceTest
 
             service.syncHotels(SupplierCode.SUPPLIER_A, hotels)
 
-            val hotelMapping =
-                hotelMappingRepository
-                    .findBySupplierAndExternalHotelCode(SupplierCode.SUPPLIER_A, "A-10023")!!
+            val hotelMapping = findHotel("A-10023")
             assertEquals("Riverside Hotel Seoul", hotelMapping.hotelName)
 
             val roomTypes = roomTypeMappingRepository.findAllByHotelMapping(hotelMapping)
@@ -84,8 +85,7 @@ class MappingSyncServiceTest
                 ),
             )
 
-            val hotelMapping =
-                hotelMappingRepository.findBySupplierAndExternalHotelCode(SupplierCode.SUPPLIER_A, "A-10023")!!
+            val hotelMapping = findHotel("A-10023")
             val rawHotelMappingId =
                 jdbcTemplate.queryForObject(
                     "SELECT hotel_mapping_id FROM room_type_mapping WHERE external_room_type_code = ?",
@@ -115,9 +115,7 @@ class MappingSyncServiceTest
 
             assertEquals(1, hotelMappingRepository.findAll().size)
 
-            val hotelMapping =
-                hotelMappingRepository
-                    .findBySupplierAndExternalHotelCode(SupplierCode.SUPPLIER_A, "A-10023")!!
+            val hotelMapping = findHotel("A-10023")
             assertEquals(1, roomTypeMappingRepository.findAllByHotelMapping(hotelMapping).size)
         }
 
@@ -133,10 +131,7 @@ class MappingSyncServiceTest
                     ),
                 ),
             )
-            val idBeforeRename =
-                hotelMappingRepository
-                    .findBySupplierAndExternalHotelCode(SupplierCode.SUPPLIER_A, "A-10023")!!
-                    .id
+            val idBeforeRename = findHotel("A-10023").id
 
             service.syncHotels(
                 SupplierCode.SUPPLIER_A,
@@ -152,9 +147,7 @@ class MappingSyncServiceTest
             entityManager.clear()
 
             assertEquals(1, hotelMappingRepository.findAll().size)
-            val updated =
-                hotelMappingRepository
-                    .findBySupplierAndExternalHotelCode(SupplierCode.SUPPLIER_A, "A-10023")!!
+            val updated = findHotel("A-10023")
             assertEquals("Riverside Hotel Seoul (Renamed)", updated.hotelName)
             assertEquals(idBeforeRename, updated.id)
         }
@@ -171,9 +164,7 @@ class MappingSyncServiceTest
                     ),
                 ),
             )
-            val hotelMapping =
-                hotelMappingRepository
-                    .findBySupplierAndExternalHotelCode(SupplierCode.SUPPLIER_A, "A-10023")!!
+            val hotelMapping = findHotel("A-10023")
             val idBeforeUpdate =
                 roomTypeMappingRepository
                     .findByHotelMappingAndExternalRoomTypeCode(hotelMapping, "DLX-TWN")!!
@@ -216,12 +207,8 @@ class MappingSyncServiceTest
                 ),
             )
 
-            val hotelA =
-                hotelMappingRepository
-                    .findBySupplierAndExternalHotelCode(SupplierCode.SUPPLIER_A, "A-10023")!!
-            val hotelB =
-                hotelMappingRepository
-                    .findBySupplierAndExternalHotelCode(SupplierCode.SUPPLIER_A, "A-20045")!!
+            val hotelA = findHotel("A-10023")
+            val hotelB = findHotel("A-20045")
 
             val roomA = roomTypeMappingRepository.findByHotelMappingAndExternalRoomTypeCode(hotelA, "STD")!!
             val roomB = roomTypeMappingRepository.findByHotelMappingAndExternalRoomTypeCode(hotelB, "STD")!!
@@ -243,8 +230,7 @@ class MappingSyncServiceTest
                     ),
                 ),
             )
-            val hotelMapping =
-                hotelMappingRepository.findBySupplierAndExternalHotelCode(SupplierCode.SUPPLIER_A, "A-10023")!!
+            val hotelMapping = findHotel("A-10023")
             val hotelIdBeforeReSync = hotelMapping.id
 
             service.syncHotels(
@@ -263,8 +249,7 @@ class MappingSyncServiceTest
             )
             entityManager.clear()
 
-            val updatedHotelMapping =
-                hotelMappingRepository.findBySupplierAndExternalHotelCode(SupplierCode.SUPPLIER_A, "A-10023")!!
+            val updatedHotelMapping = findHotel("A-10023")
             assertEquals(hotelIdBeforeReSync, updatedHotelMapping.id)
 
             val roomTypes = roomTypeMappingRepository.findAllByHotelMapping(updatedHotelMapping)
@@ -285,7 +270,7 @@ class MappingSyncServiceTest
             )
             val idsBeforeReSync =
                 listOf("A-1", "A-2", "A-3").associateWith {
-                    hotelMappingRepository.findBySupplierAndExternalHotelCode(SupplierCode.SUPPLIER_A, it)!!.id
+                    findHotel(it).id
                 }
 
             // 청크 크기 2로 4개(기존 3 + 신규 1)를 동기화하면 청크 경계가
@@ -303,12 +288,12 @@ class MappingSyncServiceTest
             entityManager.clear()
 
             idsBeforeReSync.forEach { (code, id) ->
-                val current = hotelMappingRepository.findBySupplierAndExternalHotelCode(SupplierCode.SUPPLIER_A, code)!!
+                val current = findHotel(code)
                 assertEquals(id, current.id, "$code 는 재동기화 후에도 같은 id를 유지해야 한다")
                 val roomTypes = roomTypeMappingRepository.findAllByHotelMapping(current)
                 assertEquals(1, roomTypes.size)
             }
-            val hotel4 = hotelMappingRepository.findBySupplierAndExternalHotelCode(SupplierCode.SUPPLIER_A, "A-4")!!
+            val hotel4 = findHotel("A-4")
             assertEquals(1, roomTypeMappingRepository.findAllByHotelMapping(hotel4).size)
             assertEquals(4, hotelMappingRepository.findAll().size)
         }

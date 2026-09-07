@@ -2,6 +2,7 @@ package com.eundeang.aggregator.application
 
 import com.eundeang.aggregator.domain.DailyInventory
 import com.eundeang.aggregator.domain.SupplierAvailabilityResult
+import com.eundeang.aggregator.domain.SupplierClient
 import com.eundeang.aggregator.domain.SupplierCode
 import com.eundeang.aggregator.domain.SupplierFailureReason
 import com.eundeang.aggregator.domain.SupplierOffer
@@ -47,6 +48,9 @@ class StaySearchServiceTest
             return hotelMapping
         }
 
+        private fun service(vararg clients: SupplierClient) =
+            StaySearchService(clients.toList(), hotelMappingRepository, roomTypeMappingRepository)
+
         private fun successOffer(
             externalHotelCode: String,
             externalRoomTypeCode: String,
@@ -70,7 +74,7 @@ class StaySearchServiceTest
             val hotelB = seedHotel(SupplierCode.SUPPLIER_B, "B77120", "Riverside Hotel Seoul", "R-401", "Deluxe Twin Room")
             val clientA = FakeSupplierClient(SupplierCode.SUPPLIER_A) { successOffer("A-10023", "DLX-TWN") }
             val clientB = FakeSupplierClient(SupplierCode.SUPPLIER_B) { successOffer("B77120", "R-401") }
-            val service = StaySearchService(listOf(clientA, clientB), hotelMappingRepository, roomTypeMappingRepository)
+            val service = service(clientA, clientB)
 
             val result = runBlocking { service.search(checkIn, checkOut, 2, 0) }
 
@@ -89,7 +93,7 @@ class StaySearchServiceTest
                 FakeSupplierClient(SupplierCode.SUPPLIER_B) {
                     SupplierAvailabilityResult.Failure(SupplierFailureReason.TIMEOUT, "B 응답 지연")
                 }
-            val service = StaySearchService(listOf(clientA, clientB), hotelMappingRepository, roomTypeMappingRepository)
+            val service = service(clientA, clientB)
 
             val result = runBlocking { service.search(checkIn, checkOut, 2, 0) }
 
@@ -111,7 +115,7 @@ class StaySearchServiceTest
                 FakeSupplierClient(SupplierCode.SUPPLIER_B) {
                     SupplierAvailabilityResult.Failure(SupplierFailureReason.TIMEOUT, "B 응답 지연")
                 }
-            val service = StaySearchService(listOf(clientA, clientB), hotelMappingRepository, roomTypeMappingRepository)
+            val service = service(clientA, clientB)
 
             val result = runBlocking { service.search(checkIn, checkOut, 2, 0) }
 
@@ -127,7 +131,7 @@ class StaySearchServiceTest
                 seedHotel(SupplierCode.SUPPLIER_A, "A-$i", "Hotel $i", "STD", "Standard")
             }
             val clientA = FakeSupplierClient(SupplierCode.SUPPLIER_A) { SupplierAvailabilityResult.Success(emptyList()) }
-            val service = StaySearchService(listOf(clientA), hotelMappingRepository, roomTypeMappingRepository)
+            val service = service(clientA)
 
             runBlocking { service.search(checkIn, checkOut, 2, 0) }
 
@@ -142,7 +146,7 @@ class StaySearchServiceTest
             // SUPPLIER_B는 seedHotel을 호출하지 않아 매핑이 비어있음
             val clientA = FakeSupplierClient(SupplierCode.SUPPLIER_A) { successOffer("A-10023", "DLX-TWN") }
             val clientB = FakeSupplierClient(SupplierCode.SUPPLIER_B) { successOffer("B77120", "R-401") }
-            val service = StaySearchService(listOf(clientA, clientB), hotelMappingRepository, roomTypeMappingRepository)
+            val service = service(clientA, clientB)
 
             val result = runBlocking { service.search(checkIn, checkOut, 2, 0) }
 
