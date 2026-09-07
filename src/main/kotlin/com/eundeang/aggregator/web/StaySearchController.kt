@@ -32,15 +32,16 @@ class StaySearchController(
         @Parameter(description = "성인 수", example = "2") @RequestParam adults: Int,
         @Parameter(description = "아동 수", example = "0") @RequestParam children: Int,
     ): StaySearchResult {
-        if (!checkOut.isAfter(checkIn)) {
-            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "checkOut은 checkIn 이후 날짜여야 합니다")
-        }
-        if (adults < 1) {
-            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "adults는 1 이상이어야 합니다")
-        }
-        if (children < 0) {
-            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "children은 0 이상이어야 합니다")
-        }
+        requireBadRequest(checkOut.isAfter(checkIn), "checkOut은 checkIn 이후 날짜여야 합니다")
+        requireBadRequest(adults >= 1, "adults는 1 이상이어야 합니다")
+        requireBadRequest(children >= 0, "children은 0 이상이어야 합니다")
         return staySearchService.search(checkIn, checkOut, adults, children)
+    }
+
+    private fun requireBadRequest(
+        condition: Boolean,
+        message: String,
+    ) {
+        if (!condition) throw ResponseStatusException(HttpStatus.BAD_REQUEST, message)
     }
 }
