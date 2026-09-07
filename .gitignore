@@ -38,3 +38,6 @@ out/
 
 ### Kotlin ###
 .kotlin
+
+### Claude Code (로컬 작업 도구 설정 — 저장소에는 포함하지 않음) ###
+.claude/

@@ -4,7 +4,7 @@ import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 
 /**
- * 과제 안내 문서(부록 A) "요금 규약": 숙박 전체 금액 = 각 날짜의
+ * 요구사항 문서 "요금 규약": 숙박 전체 금액 = 각 날짜의
  * (nightlyRate+taxAmount) 합산.
  */
 class CalculateTotalAmountTest :

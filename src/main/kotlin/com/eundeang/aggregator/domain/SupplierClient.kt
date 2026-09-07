@@ -39,7 +39,7 @@ data class SupplierRoomType(
 /**
  * 재고·요금 조회 결과 — 성공/실패를 코드에서 항상 명시적으로 다루게 강제한다.
  * A의 HTTP 4xx/5xx와 B의 resultCode!=0000을 모두 Failure로 통일해서 반환하는 게
- * 이 타입의 핵심 존재 이유 (§3.2④ 실패 판정 통일).
+ * 이 타입의 핵심 존재 이유. 근거: docs/supplier-adapter.md "실패 판정 통일".
  */
 sealed class SupplierAvailabilityResult {
     data class Success(

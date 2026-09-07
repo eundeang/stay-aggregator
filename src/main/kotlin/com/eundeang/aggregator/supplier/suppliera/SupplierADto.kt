@@ -1,7 +1,7 @@
 package com.eundeang.aggregator.supplier.suppliera
 
 // A 전용 DTO. 이 파일 밖(SupplierAClient.kt 제외)으로 나가지 않는다.
-// 과제 안내 문서(부록 A) "Supplier A" 섹션의 응답 구조를 그대로 반영 (flat — 숙소 x 객실타입 조합당 1행).
+// 요구사항 문서의 "Supplier A" 응답 구조를 그대로 반영 (flat — 숙소 x 객실타입 조합당 1행).
 
 internal data class SupplierAHotelsResponseDto(
     val items: List<SupplierAHotelDto>,

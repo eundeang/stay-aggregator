@@ -12,7 +12,7 @@ import okhttp3.mockwebserver.MockWebServer
 import java.time.LocalDate
 
 /**
- * 과제 안내 문서(부록 A) "Supplier A" 섹션의 응답 예시를 그대로 사용한
+ * 요구사항 문서의 "Supplier A" 응답 예시를 그대로 사용한
  * MockWebServer 기반 어댑터 테스트. 9090 Mock Supplier는 띄우지 않는다.
  *
  * 실패 판정 통일·타임아웃·X-Api-Key 같은 모든 SupplierClient 공통 계약은

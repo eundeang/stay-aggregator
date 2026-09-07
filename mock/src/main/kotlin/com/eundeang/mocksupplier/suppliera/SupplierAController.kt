@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.RestController
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
 
-@Tag(name = "Supplier A", description = "과제 안내 문서(부록 A)의 Supplier A 재현")
+@Tag(name = "Supplier A", description = "요구사항 문서의 Supplier A 재현")
 @RestController
 @RequestMapping("/a/v1")
 class SupplierAController(private val modeStore: ModeStore) {

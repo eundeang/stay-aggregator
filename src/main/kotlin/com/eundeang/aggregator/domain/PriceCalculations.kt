@@ -2,7 +2,7 @@ package com.eundeang.aggregator.domain
 
 /**
  * 숙박 전체 금액 = 각 날짜의 (nightlyRate+taxAmount) 합산.
- * 근거: 과제 안내 문서(부록 A) "요금 규약"
+ * 근거: 요구사항 문서 "요금 규약"
  * dailyRates: List<Pair<nightlyRate, taxAmount>>
  */
 fun calculateTotalAmount(dailyRates: List<Pair<Long, Long>>): Long =

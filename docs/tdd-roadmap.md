@@ -9,7 +9,7 @@
 - `calculateAvailableRooms(dailyRemainingRooms: List<DailyInventory>): Int`
   — 기간 내 최솟값. 근거: `docs/domain-model.md` "재고 / 예약 가능 객실 수"
 - `calculateTotalAmount(nightlyRate, taxAmount 목록): Long` (Supplier A 전용 헬퍼)
-  — `Σ(nightlyRate+taxAmount)`. 근거: 과제 안내 문서(부록 A) "요금 규약"
+  — `Σ(nightlyRate+taxAmount)`. 근거: 요구사항 문서 "요금 규약"
   — 구현 위치는 `supplier/suppliera`가 아니라 `domain`으로 결정 (순수 계산,
   근거는 JOURNAL.md Day 2 참고)
 - 테스트 케이스: 일반 케이스, 최솟값 0(예약불가), 1박 단일 케이스, 전날짜 동일값

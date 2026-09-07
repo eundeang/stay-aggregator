@@ -38,8 +38,8 @@ Application 계층의 책임이다. 그래서 어댑터는 **외부 코드 기�
 공급사마다 실패를 표현하는 방식 자체가 다르다 — A는 표준 HTTP 상태 코드로,
 B는 HTTP는 항상 200을 반환하고 본문의 자체 코드(`resultCode`)로만 실패를
 알린다. 이 표현 차이를 호출부가 알 필요 없도록, 각 어댑터 내부에서 공통의
-`SupplierFailureReason`으로 정규화한다 (스펙 원문의 정확한 코드 값은 과제
-안내에 따라 여기 옮겨 적지 않는다 — 상세는 Mock/DTO 구현 코드 참고).
+`SupplierFailureReason`으로 정규화한다 (스펙 원문의 정확한 코드 값은
+여기 옮겨 적지 않는다 — 상세는 Mock/DTO 구현 코드 참고).
 
 | SupplierFailureReason | 의미 |
 |---|---|

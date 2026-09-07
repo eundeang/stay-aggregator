@@ -13,7 +13,7 @@ import okhttp3.mockwebserver.MockWebServer
 import java.time.LocalDate
 
 /**
- * 과제 안내 문서(부록 A) "Supplier B" 섹션의 응답 예시를 그대로 사용한
+ * 요구사항 문서의 "Supplier B" 응답 예시를 그대로 사용한
  * MockWebServer 기반 어댑터 테스트. B는 HTTP 상태 코드가 항상 200이라, 실패
  * 판정은 오직 resultCode로만 이뤄져야 한다는 게 핵심 검증 포인트.
  *
